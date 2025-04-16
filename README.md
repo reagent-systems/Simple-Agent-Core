@@ -174,28 +174,3 @@ MY_COMMAND_SCHEMA = {
 
 register_command("my_command", my_command, MY_COMMAND_SCHEMA)
 ```
-
-
-SimpleAgent Example Usage
-This script demonstrates how to use SimpleAgent programmatically.
-
-```python
-from SimpleAgent import SimpleAgent
-
-def main():
-    # Create a SimpleAgent instance
-    agent = SimpleAgent()
-    
-    # Run the agent with a specific instruction
-    agent.run(
-        user_instruction="Create a simple text file called 'hello.txt' with the content 'Hello, World!' and then read it back.",
-        max_steps=5
-    )
-    
-    # You can also run multiple instructions in sequence
-    # agent.run("List all files in the current directory.")
-    # agent.run("Create a directory called 'data' and a JSON file inside it.")
-
-if __name__ == "__main__":
-    main() 
-```
