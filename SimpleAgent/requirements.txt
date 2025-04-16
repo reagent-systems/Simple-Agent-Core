@@ -1,0 +1,9 @@
+openai
+python-dotenv
+pyyaml
+colorama
+requests
+beautifulsoup4
+googlesearch-python
+PyGithub
+discord.py
