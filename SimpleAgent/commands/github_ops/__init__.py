@@ -1,4 +1,5 @@
-"""GitHub operations package for SimpleAgent.
+"""
+GitHub operations package for SimpleAgent.
 
 This package provides GitHub-related commands like reading repositories, issues, and pull requests.
 """
@@ -14,3 +15,5 @@ from . import github_approve_pr  # Import the PR approval command
 from . import github_close_pr  # Import the PR close command
 from . import github_merge_pr  # Import the PR merge command
 from . import github_reopen_pr  # Import the PR reopen command 
+
+# TODO: Implement rate limit handling using exponential backoff

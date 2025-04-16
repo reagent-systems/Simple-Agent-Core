@@ -8,8 +8,24 @@ Commands are organized by category in subdirectories.
 import os
 import importlib
 import pkgutil
+import logging
 from typing import Dict, Any, Callable, List
 from collections import defaultdict
+
+# Setup logger
+def setup_logger(name):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    # create console handler and set level to debug
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    # create formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    # add formatter to ch
+    ch.setFormatter(formatter)
+    # add ch to logger
+    logger.addHandler(ch)
+    return logger
 
 # Dictionary to store all registered commands
 REGISTERED_COMMANDS: Dict[str, Callable] = {}
@@ -19,6 +35,9 @@ COMMAND_SCHEMAS: List[Dict[str, Any]] = []
 
 # Dictionary to store commands by category
 COMMANDS_BY_CATEGORY: Dict[str, List[str]] = defaultdict(list)
+
+# Setup logger
+logger = setup_logger('simple_agent_core')
 
 
 def register_command(name: str, func: Callable, schema: Dict[str, Any]) -> None:
@@ -37,6 +56,7 @@ def register_command(name: str, func: Callable, schema: Dict[str, Any]) -> None:
     module = func.__module__
     category = module.split('.')[1] if len(module.split('.')) > 1 else 'misc'
     COMMANDS_BY_CATEGORY[category].append(name)
+    logger.info(f'Registered command: {name} in category {category}')
 
 
 def discover_commands() -> None:
@@ -64,7 +84,7 @@ def discover_commands() -> None:
 
 def print_commands() -> None:
     """Print all registered commands in a nicely formatted way."""
-    print("\n📦 Available Commands:")
+    print("\n Available Commands:")
     print("=" * 50)
     
     if not COMMANDS_BY_CATEGORY:
@@ -78,7 +98,7 @@ def print_commands() -> None:
     for category in sorted(COMMANDS_BY_CATEGORY.keys()):
         # Format category name
         category_display = category.replace('_', ' ').title()
-        print(f"\n🔹 {category_display} Commands:")
+        print(f"\n {category_display} Commands:")
         print("-" * 30)
         
         # Sort commands within category
@@ -90,7 +110,7 @@ def print_commands() -> None:
                              "No description available")
             
             # Print command with padding and description
-            print(f"  {cmd:<{max_length + 2}} │ {description}")
+            print(f"  {cmd:<{max_length + 2}}  {description}")
     
     print("\n" + "=" * 50)
     print(f"Total commands: {len(REGISTERED_COMMANDS)}\n")

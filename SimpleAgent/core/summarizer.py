@@ -6,6 +6,7 @@ using a cheaper GPT model.
 """
 
 import os
+import logging
 from typing import List, Dict, Any
 from openai import OpenAI
 from core.config import OPENAI_API_KEY, SUMMARIZER_MODEL
@@ -21,6 +22,7 @@ class ChangeSummarizer:
         """
         self.model = model or SUMMARIZER_MODEL
         self.client = OpenAI(api_key=OPENAI_API_KEY)
+        self.logger = logging.getLogger('simple_agent_core')
         
     def summarize_changes(self, changes: List[Dict[str, Any]], is_step_summary: bool = False) -> str:
         """
@@ -85,14 +87,14 @@ Changes to analyze:
 Focus on concrete changes and their impact. Avoid filler words and redundant information.
 
 Examples of good summaries:
-✓ "Added /time endpoint that returns current time in ISO format"
-✓ "Created error handling for 404 responses in user routes"
-✓ "Set up project with Flask 2.0.3 and basic config"
+ "Added /time endpoint that returns current time in ISO format"
+ "Created error handling for 404 responses in user routes"
+ "Set up project with Flask 2.0.3 and basic config"
 
 Examples of bad summaries:
-✗ "Made changes to the file"
-✗ "Added some new code"
-✗ "The changes were successful"
+ "Made changes to the file"
+ "Added some new code"
+ "The changes were successful"
 
 Use bullet points and be specific but brief."""
                     },
@@ -107,12 +109,13 @@ Use bullet points and be specific but brief."""
                 
                 # For step summaries, make it immediate and brief
                 if is_step_summary:
-                    return f"📍 Step Result:\n{summary}"
+                    return f"[33m Step Result:\n{summary}"
                 # For overall summaries, provide more context
                 else:
-                    return f"📋 Project Status:\n{summary}"
+                    return f"[34m Project Status:\n{summary}"
             else:
                 return None
                 
         except Exception as e:
+            self.logger.error('Error generating summary: %s', e)
             return f"Error generating summary: {str(e)}" 

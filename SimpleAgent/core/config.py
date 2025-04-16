@@ -27,3 +27,12 @@ MEMORY_FILE = os.path.join(OUTPUT_DIR, os.getenv("MEMORY_FILE", "memory.json"))
 # Application settings
 MAX_STEPS = int(os.getenv("MAX_STEPS", "10"))
 DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() == "true" 
+
+# Configuration validation step
+def validate_config():
+    errors = []
+    if not OPENAI_API_KEY:
+        errors.append('Missing OPENAI_API_KEY')
+    if errors:
+        raise ValueError(f"Configuration validation error: {'; '.join(errors)}")
+validate_config()

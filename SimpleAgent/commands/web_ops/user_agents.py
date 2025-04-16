@@ -1,4 +1,5 @@
-"""User agent manager for web operations.
+"""
+User agent manager for web operations.
 
 This module provides a rotating list of user agents to make web requests appear more legitimate.
 """
@@ -45,6 +46,7 @@ class UserAgentManager:
         agents = []
         
         # Desktop Chrome
+        # Consider updating Chrome versions to recent ones
         for os in self.windows_versions + self.mac_versions + self.linux_versions:
             for version in self.chrome_versions:
                 agents.append(
@@ -53,6 +55,7 @@ class UserAgentManager:
                 )
         
         # Desktop Firefox
+        # Consider updating Firefox versions to recent ones
         for os in self.windows_versions + self.mac_versions + self.linux_versions:
             for version in self.firefox_versions:
                 agents.append(
@@ -60,6 +63,7 @@ class UserAgentManager:
                 )
         
         # Desktop Safari
+        # Consider updating Safari versions to recent ones
         for os in self.mac_versions:
             for version in self.safari_versions:
                 agents.append(

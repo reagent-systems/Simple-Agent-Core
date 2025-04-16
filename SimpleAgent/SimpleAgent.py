@@ -11,7 +11,23 @@ import sys
 import json
 import time
 import argparse
+import logging
 from typing import List, Dict, Any, Optional, Callable
+
+# Setup logger
+def setup_logger(name):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    # create console handler and set level to debug
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    # create formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    # add formatter to ch
+    ch.setFormatter(formatter)
+    # add ch to logger
+    logger.addHandler(ch)
+    return logger
 
 # Import commands package
 import commands
@@ -24,10 +40,13 @@ from core.config import OPENAI_API_KEY, MAX_STEPS
 # Initialize commands
 commands.init()
 
+# Setup logger
+logger = setup_logger('simple_agent_core')
+
 # Check for API key
 if not OPENAI_API_KEY:
-    print("Error: OPENAI_API_KEY environment variable not set.")
-    print("Please set it in a .env file or in your environment variables.")
+    logger.error("Error: OPENAI_API_KEY environment variable not set.")
+    logger.error("Please set it in a .env file or in your environment variables.")
     sys.exit(1)
 
 
@@ -51,6 +70,7 @@ def main():
     max_steps = max(args.max_steps, args.auto) if args.auto > 0 else args.max_steps
     
     # Initialize and run the agent
+    logger.info('Starting SimpleAgent with instruction: %s', instruction)
     agent = SimpleAgent()
     agent.run(instruction, max_steps=max_steps, auto_continue=args.auto)
 

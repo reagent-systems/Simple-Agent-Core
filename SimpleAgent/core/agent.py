@@ -18,6 +18,7 @@ import os
 import sys
 import json
 import time
+import logging
 from typing import List, Dict, Any, Optional, Callable
 from openai import OpenAI
 
@@ -95,6 +96,8 @@ class SimpleAgent:
         self.model = model or DEFAULT_MODEL
         self.conversation_history = []
         self.output_dir = OUTPUT_DIR
+        # Setup logger
+        self.logger = logging.getLogger('simple_agent_core')
         # Ensure output directory exists
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
@@ -109,14 +112,14 @@ class SimpleAgent:
         """Load the agent's memory from a file if it exists."""
         if REGISTERED_COMMANDS["file_exists"](self.memory_file):
             self.memory = REGISTERED_COMMANDS["load_json"](self.memory_file)
-            print(f"Loaded memory from {self.memory_file}")
+            self.logger.info(f"Loaded memory from {self.memory_file}")
         else:
             self.memory = {"conversations": [], "files_created": [], "files_modified": []}
             
     def save_memory(self):
         """Save the agent's memory to a file."""
         REGISTERED_COMMANDS["save_json"](self.memory_file, self.memory)
-        print(f"Saved memory to {self.memory_file}")
+        self.logger.info(f"Saved memory to {self.memory_file}")
         
     def add_to_conversation(self, role: str, content: str, **kwargs):
         """Add a message to the conversation history."""
@@ -182,7 +185,7 @@ class SimpleAgent:
                         # For read operations, we want to be more strict
                         if function_name == "read_file":
                             # Return a clear security message instead of the file content
-                            print(f"⚠️ Security: Attempted to access file outside of output directory: {modified_args[param_name]}")
+                            self.logger.warning(f"[33m Security: Attempted to access file outside of output directory: {modified_args[param_name]}")
                             # Replace the argument with a file that doesn't exist to trigger the file not found error
                             modified_args[param_name] = os.path.join(self.output_dir, "FILE_ACCESS_DENIED")
                 
@@ -200,23 +203,25 @@ class SimpleAgent:
         # Flag to track if we should stop execution due to interrupt
         self.stop_requested = False
         
-        print(f"\n🤖 SimpleAgent initialized with instruction: {user_instruction}")
-        print(f"📁 Using output directory: {self.output_dir}")
+        self.logger.info(f"Starting execution with user instruction: {user_instruction}")
+        
+        print(f"\n[32m SimpleAgent initialized with instruction: {user_instruction}")
+        print(f"[34m Using output directory: {self.output_dir}")
         
         # Get current date and time information for the system message
         current_datetime = time.strftime("%Y-%m-%d %H:%M:%S")
         current_year = time.strftime("%Y")
-        print(f"📅 Current date: {current_datetime}")
+        print(f"[35m Current date: {current_datetime}")
         
         # Change working directory to output directory
         original_cwd = os.getcwd()
         
         # Only print auto-continue message if it's enabled (non-zero and not None)
         if auto_continue and auto_continue != 0:
-            print(f"📌 Auto-continue enabled for {auto_continue if auto_continue > 0 else 'all'} steps")
-            print("💡 Press Ctrl+C at any time to interrupt and stop execution")
+            print(f"[33m Auto-continue enabled for {auto_continue if auto_continue > 0 else 'all'} steps")
+            print("[36m Press Ctrl+C at any time to interrupt and stop execution")
         else:
-            print("📌 Manual mode (auto-continue disabled)")
+            print("[33m Manual mode (auto-continue disabled)")
         print()
         
         try:
@@ -225,7 +230,7 @@ class SimpleAgent:
             # which helps with relative file paths and makes the debug info consistent
             if os.path.exists(self.output_dir):
                 os.chdir(self.output_dir)
-                print(f"🔄 Changed working directory to: {os.getcwd()}")
+                print(f"[34m Changed working directory to: {os.getcwd()}")
             
             # Clear the conversation history and start fresh
             self.conversation_history = []
@@ -271,7 +276,8 @@ Current execution context:
             # If date-related, add a reminder about the current date
             if is_date_related:
                 date_reminder = f"Remember that today's date is {current_datetime} as you work on this task. All date-related calculations should use this as a reference point."
-                print(f"📅 Adding date reminder: {date_reminder}")
+                self.logger.info("Adding date reminder: %s", date_reminder)
+                print(f"[35m Adding date reminder: {date_reminder}")
                 self.add_to_conversation("user", date_reminder)
             
             # Track changes for summarization
@@ -332,14 +338,14 @@ The user will be prompted after each step to continue or provide new instruction
                         )
                         
                         if not response.choices or not response.choices[0].message:
-                            print("Error: Failed to get a response from the model.")
+                            self.logger.error("Error: Failed to get a response from the model.")
                             break
                             
                         assistant_message = response.choices[0].message
                         
                         # Add the assistant's response to conversation history
                         if assistant_message.content:
-                            print(f"\n🤖 Assistant: {assistant_message.content}")
+                            print(f"\n[32m Assistant: {assistant_message.content}")
                         
                         # Create a proper assistant message for the conversation history
                         message_dict = {"role": "assistant"}
@@ -375,8 +381,9 @@ The user will be prompted after each step to continue or provide new instruction
                                 function_args = self._modify_file_args(function_name, function_args)
                                 
                                 # Execute the function
-                                print(f"📋 Executing function: {function_name}")
-                                print(f"   with arguments: {function_args}")
+                                self.logger.info("Executing function: %s with arguments: %s", function_name, function_args)
+                                print(f"[34m Executing function: {function_name}")
+                                print(f"[34m    with arguments: {function_args}")
                                 
                                 function_to_call = REGISTERED_COMMANDS.get(function_name)
                                 if function_to_call:
@@ -393,7 +400,8 @@ The user will be prompted after each step to continue or provide new instruction
                                             
                                             # If path not within output directory, block the operation
                                             if not abs_path.startswith(abs_output_dir):
-                                                print(f"⚠️ SECURITY BLOCKED: Attempted to access path outside of output directory: {path}")
+                                                self.logger.warning("SECURITY BLOCKED: Attempted to access path outside of output directory: %s", path)
+                                                print(f"[31m SECURITY BLOCKED: Attempted to access path outside of output directory: {path}")
                                                 function_response = "Operation blocked: Security violation - attempted to access path outside of output directory"
                                                 break
                                         else:  # This else belongs to the for loop - executes if no break occurs
@@ -411,7 +419,8 @@ The user will be prompted after each step to continue or provide new instruction
                                         # Non-file operations can proceed normally
                                         function_response = function_to_call(**function_args)
                                     
-                                    print(f"📊 Function result: {function_response}")
+                                    self.logger.info("Function %s executed with result: %s", function_name, function_response)
+                                    print(f"[32m Function result: {function_response}")
                                     
                                     # Track file operations for summarization
                                     if function_name in self.FILE_OPS:
@@ -433,7 +442,8 @@ The user will be prompted after each step to continue or provide new instruction
                                         "content": str(function_response)
                                     })
                                 else:
-                                    print(f"❌ Function {function_name} not found")
+                                    self.logger.error("Function %s not found", function_name)
+                                    print(f"[31m Function {function_name} not found")
                         
                         # Generate a summary of changes for this step if any were made
                         if step_changes:
@@ -454,7 +464,8 @@ The user will be prompted after each step to continue or provide new instruction
                                 "finished",
                                 "completed successfully"
                             ]):
-                                print("\n✅ Task completed")
+                                self.logger.info("Task completed after %s steps", step)
+                                print("\n[32m Task completed")
                                 break
                             # Check if the assistant is just waiting for input or has nothing to do
                             # In auto mode, we want to continue even if the model asks a question
@@ -471,7 +482,7 @@ The user will be prompted after each step to continue or provide new instruction
                                 if auto_steps_remaining == 0:  # Only in manual mode
                                     should_continue = False
                                 else:
-                                    print("\n🔄 In auto-mode: Continuing despite questions in response")
+                                    print("\n[34m In auto-mode: Continuing despite questions in response")
                             # Check if more steps are needed
                             elif any(phrase in content_lower for phrase in [
                                 "need more steps",
@@ -480,6 +491,7 @@ The user will be prompted after each step to continue or provide new instruction
                                 "cannot complete within current steps"
                             ]):
                                 needs_more_steps = True
+                                self.logger.warning("Model suggests more steps are needed")
                         
                         # Special handling in auto-mode: continue even if there are no tool calls
                         # as long as the model didn't explicitly say the task is complete
@@ -488,7 +500,8 @@ The user will be prompted after each step to continue or provide new instruction
                             if not any(phrase in content_lower for phrase in [
                                 "task complete", "i've completed", "all done", "finished", "completed successfully"
                             ]):
-                                print("\n🔄 Auto-mode: Encouraging model to continue making progress")
+                                self.logger.info("Auto-mode: Encouraging model to continue making progress")
+                                print("\n[34m Auto-mode: Encouraging model to continue making progress")
                                 self.add_to_conversation("user", "Please continue with the next step of the task. Remember to use the available commands to make progress.")
                         
                         # Only continue if there's more to do
@@ -511,13 +524,13 @@ The user will be prompted after each step to continue or provide new instruction
                                     "can you clarify", "if you need", "what would you like", "your preference",
                                     "should i", "do you want"
                                 ]):
-                                    print("\n🔄 Auto-mode: Automatically responding 'y' to continue despite questions")
+                                    print("\n[34m Auto-mode: Automatically responding 'y' to continue despite questions")
                                     # Add an automatic 'y' response in auto-mode to keep the flow going
                                     self.add_to_conversation("user", "y")
                                 
                                 # Check if a stop was requested
                                 if self.stop_requested:
-                                    print("\n🛑 Stop requested. Halting auto-continue execution.")
+                                    print("\n[35m Stop requested. Halting auto-continue execution.")
                                     break
                                     
                                 # Check if the model is using outdated date references
@@ -525,70 +538,76 @@ The user will be prompted after each step to continue or provide new instruction
                                     # Check if it's not referring to historical context
                                     if any(current_indicator in content_lower for current_indicator in ["current", "now", "today", "present", "currently"]):
                                         date_correction = f"Important correction: Today's date is {current_datetime}. Please use {current_year} as the current year for this task, not older years from your training data."
-                                        print(f"\n📅 Auto-mode: Correcting outdated date reference")
+                                        self.logger.info("Auto-mode: Correcting outdated date reference")
+                                        print(f"\n[35m Auto-mode: Correcting outdated date reference")
                                         self.add_to_conversation("user", date_correction)
                                     
                                 if needs_more_steps:
-                                    print("\n⚠️ Note: Task requires more steps than currently allocated")
-                                
-                                print("\n🔄 Auto-continuing...")
+                                    print("\n[31m Note: Task requires more steps than currently allocated")
+                                    
+                                print("\n[34m Auto-continuing...")
                                 continue
                             
                             # If we reach here, it means auto-continue is disabled (0) - manual mode
-                            user_input = input("\n🧑 Enter your next instruction, 'y' to continue with current task, or 'n' to stop: ")
+                            user_input = input("\n[32m Enter your next instruction, 'y' to continue with current task, or 'n' to stop: ")
                             
                             # Normalize the input by stripping whitespace and converting to lowercase for comparison
                             normalized_input = user_input.strip().lower()
                             
                             # IMPORTANT: Do exact string comparison
                             if normalized_input == 'n':
+                                self.logger.info("User opted to stop the agent")
                                 print("Stopping the agent")
                                 break
                             elif normalized_input == 'y':
                                 # Simply continue without additional logging
+                                self.logger.info("User opted to continue")
                                 continue
                             else:
                                 # Add the custom message to the conversation as a user message
-                                print(f"\n🧑 User: {user_input}")
+                                print(f"\n[32m User: {user_input}")
                                 self.add_to_conversation("user", user_input)
                         else:
                             # If we're at max steps or have nothing more to do, break
                             if not should_continue:
-                                print("\n✅ No further actions needed")
+                                print("\n[32m No further actions needed")
                             elif needs_more_steps:
-                                print("\n⚠️ Reached maximum steps but task requires more steps")
+                                print("\n[31m Reached maximum steps but task requires more steps")
                             break
                         
                     except Exception as e:
+                        self.logger.error("Error getting next action: %s", str(e))
                         print(f"Error getting next action: {str(e)}")
                         break
                 
                 except KeyboardInterrupt:
-                    print("\n🛑 KeyboardInterrupt received. Stopping the agent...")
+                    self.logger.info("KeyboardInterrupt received. Stopping the agent...")
+                    print("\n[35m KeyboardInterrupt received. Stopping the agent...")
                     self.stop_requested = True
-                    print("\n✅ Agent execution interrupted by user")
+                    print("\n[32m Agent execution interrupted by user")
             
             # Generate a final summary of all changes
             if changes_made:
                 final_summary = self.summarizer.summarize_changes(changes_made)
-                print(f"\n📝 Final Summary of All Changes:\n{final_summary}")
+                print(f"\n[34m Final Summary of All Changes:\n{final_summary}")
             
             # Save the memory
             self.memory["conversations"].append(self.conversation_history)
             self.save_memory()
-            
-            print("\n🏁 SimpleAgent execution completed")
+            self.logger.info("SimpleAgent execution completed")
+            print("\n[32m SimpleAgent execution completed")
             
         finally:
             # Always restore the original working directory when done
             if os.getcwd() != original_cwd:
                 os.chdir(original_cwd)
-                print(f"🔄 Restored working directory to: {original_cwd}")
+                print(f"[34m Restored working directory to: {original_cwd}")
+                self.logger.info("Restored working directory to: %s", original_cwd)
         
     def request_stop(self):
         """Request the agent to stop execution at the next convenient point."""
         self.stop_requested = True
-        print("\n🛑 Stop requested. The agent will stop at the next step.")
+        print("\n[32m Stop requested. The agent will stop at the next step.")
         return True
 
     def get_next_action(self):
@@ -607,7 +626,7 @@ The user will be prompted after each step to continue or provide new instruction
             # which helps with relative file paths and makes the debug info consistent
             if os.path.exists(self.output_dir):
                 os.chdir(self.output_dir)
-                print(f"🔄 Changed working directory to: {os.getcwd()}")
+                print(f"[34m Changed working directory to: {os.getcwd()}")
                 
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -621,10 +640,11 @@ The user will be prompted after each step to continue or provide new instruction
                 return response.choices[0].message
 
         except Exception as e:
+            self.logger.error("Error getting next action: %s", str(e))
             print(f"Error getting next action: {str(e)}")
             return None
         finally:
             # Restore original working directory
             if os.getcwd() != original_cwd:
                 os.chdir(original_cwd)
-                print(f"🔄 Restored working directory to: {original_cwd}") 
+                print(f"[34m Restored working directory to: {original_cwd}") 
