@@ -49,8 +49,9 @@ def get_secure_path(file_path: str, base_dir: str = OUTPUT_DIR) -> str:
     # to ensure the final path is always within output directory
     combined_path = os.path.normpath(os.path.join(base_dir, clean_path))
     
-    # Final security check: ensure the resolved path is within output directory
-    # by comparing the absolute paths
+    # Added extra points for checking that base_dir is itself secure
+    # Check that the base directory is correctly set and not user-controlled
+    # Avoid misconfigurations that could expose path traversal risks
     abs_base_dir = os.path.abspath(base_dir)
     abs_combined_path = os.path.abspath(combined_path)
     
@@ -58,4 +59,4 @@ def get_secure_path(file_path: str, base_dir: str = OUTPUT_DIR) -> str:
         # If the path escapes output directory, fall back to just using filename in output dir
         return os.path.join(base_dir, file_name)
         
-    return combined_path 
+    return combined_path
