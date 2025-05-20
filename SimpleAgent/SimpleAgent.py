@@ -11,7 +11,11 @@ import sys
 import json
 import time
 import argparse
+import logging
 from typing import List, Dict, Any, Optional, Callable
+
+# Set up basic logging configuration
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Import commands package
 import commands
@@ -26,8 +30,8 @@ commands.init()
 
 # Check for API key
 if not OPENAI_API_KEY:
-    print("Error: OPENAI_API_KEY environment variable not set.")
-    print("Please set it in a .env file or in your environment variables.")
+    logging.error("Error: OPENAI_API_KEY environment variable not set.")
+    logging.info("Please set it in a .env file or in your environment variables.")
     sys.exit(1)
 
 

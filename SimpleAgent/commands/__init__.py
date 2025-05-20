@@ -8,6 +8,7 @@ Commands are organized by category in subdirectories.
 import os
 import importlib
 import pkgutil
+import logging
 from typing import Dict, Any, Callable, List
 from collections import defaultdict
 
@@ -37,6 +38,8 @@ def register_command(name: str, func: Callable, schema: Dict[str, Any]) -> None:
     module = func.__module__
     category = module.split('.')[1] if len(module.split('.')) > 1 else 'misc'
     COMMANDS_BY_CATEGORY[category].append(name)
+    
+    logging.info(f'Registering command: {name} in category: {category}')
 
 
 def discover_commands() -> None:
@@ -60,11 +63,14 @@ def discover_commands() -> None:
             for _, command_name, _ in pkgutil.iter_modules([category_dir]):
                 # Import the command module
                 importlib.import_module(f"commands.{category_name}.{command_name}")
+                logging.info(f'Importing command module: commands.{category_name}.{command_name}')
 
 
 def print_commands() -> None:
     """Print all registered commands in a nicely formatted way."""
-    print("\n📦 Available Commands:")
+    print("\n
+d83d
+dce6 Available Commands:")
     print("=" * 50)
     
     if not COMMANDS_BY_CATEGORY:
@@ -78,7 +84,9 @@ def print_commands() -> None:
     for category in sorted(COMMANDS_BY_CATEGORY.keys()):
         # Format category name
         category_display = category.replace('_', ' ').title()
-        print(f"\n🔹 {category_display} Commands:")
+        print(f"\n
+d83d
+dd39 {category_display} Commands:")
         print("-" * 30)
         
         # Sort commands within category
@@ -90,7 +98,7 @@ def print_commands() -> None:
                              "No description available")
             
             # Print command with padding and description
-            print(f"  {cmd:<{max_length + 2}} │ {description}")
+            print(f"  {cmd:<{max_length + 2}}  {description}")
     
     print("\n" + "=" * 50)
     print(f"Total commands: {len(REGISTERED_COMMANDS)}\n")
