@@ -13,4 +13,5 @@ from . import git_clone  # Import the git clone command
 from . import github_approve_pr  # Import the PR approval command
 from . import github_close_pr  # Import the PR close command
 from . import github_merge_pr  # Import the PR merge command
-from . import github_reopen_pr  # Import the PR reopen command 
+from . import github_reopen_pr  # Import the PR reopen command
+from . import github_fork_clone  # Import the fork and clone command 
