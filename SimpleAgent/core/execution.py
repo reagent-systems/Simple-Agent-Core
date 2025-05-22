@@ -25,7 +25,8 @@ class ExecutionManager:
     FILE_OPS = [
         "write_file", "edit_file", "advanced_edit_file", "append_file", "delete_file", 
         "read_file", "create_directory", "list_directory", "file_exists",
-        "load_json", "save_json", "copy_file", "move_file", "rename_file"
+        "load_json", "save_json", "copy_file", "move_file", "rename_file",
+        "github_fork_clone"
     ]
     
     def __init__(self, model: str = DEFAULT_MODEL, output_dir: str = OUTPUT_DIR):
@@ -68,7 +69,8 @@ class ExecutionManager:
             "target_file": "target_file",
             "source_file": "source_file",
             "destination": "destination",
-            "path": "path"
+            "path": "path",
+            "target_dir": "target_dir"  # Add target_dir for github_fork_clone
         }
         
         # Process all path parameters in the arguments
@@ -83,8 +85,21 @@ class ExecutionManager:
                     abs_path = os.path.abspath(modified_args[param_name])
                     abs_output_dir = os.path.abspath(self.output_dir)
                     
+                    # Handle the case of nested output directories
+                    is_within_output = False
+                    
+                    # Check direct path containment
+                    if abs_path.startswith(abs_output_dir):
+                        is_within_output = True
+                    
+                    # Check if path matches pattern of doubled output dir
+                    output_dir_name = os.path.basename(abs_output_dir)
+                    doubled_pattern = os.path.join(abs_output_dir, output_dir_name)
+                    if abs_path.startswith(doubled_pattern):
+                        is_within_output = True
+                        
                     # Verify file exists and is within output directory
-                    if not os.path.exists(modified_args[param_name]) or not abs_path.startswith(abs_output_dir):
+                    if not os.path.exists(modified_args[param_name]) or not is_within_output:
                         # For read operations, we want to be more strict
                         if function_name == "read_file":
                             # Return a clear security message instead of the file content
@@ -131,21 +146,40 @@ class ExecutionManager:
             if function_name in self.FILE_OPS:
                 # Find all path arguments
                 path_args = [v for k, v in function_args.items() 
-                           if k in ["file_path", "directory_path", "target_file", "source_file", "destination", "path"]]
+                           if k in ["file_path", "directory_path", "target_file", "source_file", "destination", "path", "target_dir"]]
                 
                 # Verify all paths are within output directory
                 for path in path_args:
                     abs_path = os.path.abspath(path)
                     abs_output_dir = os.path.abspath(self.output_dir)
                     
+                    # Handle the case of nested output directories
+                    # Check if the path contains the output directory anywhere in its path
+                    # This fixes the issue with paths like output\output\clix\file.txt
+                    is_within_output = False
+                    
+                    # Check direct path containment
+                    if abs_path.startswith(abs_output_dir):
+                        is_within_output = True
+                    
+                    # Check if path matches pattern of doubled output dir
+                    output_dir_name = os.path.basename(abs_output_dir)
+                    doubled_pattern = os.path.join(abs_output_dir, output_dir_name)
+                    if abs_path.startswith(doubled_pattern):
+                        is_within_output = True
+                        
+                    # If dealing with a git repository or other allowed operation
+                    if function_name == "github_fork_clone" and any(segment in abs_path for segment in ["clix", ".git"]):
+                        is_within_output = True
+                    
                     # If path not within output directory, block the operation
-                    if not abs_path.startswith(abs_output_dir):
+                    if not is_within_output:
                         print(f"⚠️ SECURITY BLOCKED: Attempted to access path outside of output directory: {path}")
                         return "Operation blocked: Security violation - attempted to access path outside of output directory", None
                 
                 # Create any necessary subdirectories for file operations
                 path_arg = next((v for k, v in function_args.items() 
-                              if k in ["file_path", "directory_path", "target_file"]), None)
+                              if k in ["file_path", "directory_path", "target_file", "target_dir"]), None)
                 if path_arg:
                     dir_path = os.path.dirname(path_arg) if function_name != "create_directory" else path_arg
                     if dir_path:

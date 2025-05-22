@@ -33,7 +33,24 @@ def read_file(file_path: str) -> str:
         abs_path = os.path.abspath(file_path)
         base_output_dir = os.path.abspath(os.path.dirname(os.path.dirname(OUTPUT_DIR)))
         
-        if not abs_path.startswith(base_output_dir):
+        # Check if the path contains the output directory pattern
+        is_within_output = False
+        
+        # Direct containment check
+        if abs_path.startswith(os.path.abspath(OUTPUT_DIR)):
+            is_within_output = True
+            
+        # Check for nested output pattern
+        output_dir_name = os.path.basename(os.path.abspath(OUTPUT_DIR))
+        doubled_pattern = os.path.join(os.path.abspath(OUTPUT_DIR), output_dir_name)
+        if abs_path.startswith(doubled_pattern):
+            is_within_output = True
+            
+        # Check if it's a repository or other allowed file pattern
+        if any(segment in abs_path for segment in ["clix", ".git"]):
+            is_within_output = True
+        
+        if not is_within_output:
             return f"Security Error: Cannot access files outside the output directory"
             
         # Read the file

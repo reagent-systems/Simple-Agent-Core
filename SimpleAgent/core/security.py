@@ -28,6 +28,15 @@ def get_secure_path(file_path: str, base_dir: str = OUTPUT_DIR) -> str:
     # Normalize path separators to system default
     file_path = file_path.replace('/', os.path.sep).replace('\\', os.path.sep)
     
+    # Check if the path already starts with the output directory pattern
+    # This handles cases where the path might already have the output directory in it
+    abs_file_path = os.path.abspath(file_path)
+    abs_base_dir = os.path.abspath(base_dir)
+    
+    # If the path is already within the output directory, return it as is
+    if abs_file_path.startswith(abs_base_dir):
+        return file_path
+    
     # Get just the basename to handle absolute paths or traversal attempts
     file_name = os.path.basename(file_path)
     
@@ -51,7 +60,6 @@ def get_secure_path(file_path: str, base_dir: str = OUTPUT_DIR) -> str:
     
     # Final security check: ensure the resolved path is within output directory
     # by comparing the absolute paths
-    abs_base_dir = os.path.abspath(base_dir)
     abs_combined_path = os.path.abspath(combined_path)
     
     if not abs_combined_path.startswith(abs_base_dir):

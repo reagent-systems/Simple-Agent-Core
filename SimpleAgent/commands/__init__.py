@@ -68,9 +68,7 @@ def discover_commands() -> None:
 
 def print_commands() -> None:
     """Print all registered commands in a nicely formatted way."""
-    print("\n
-d83d
-dce6 Available Commands:")
+    print("\nAvailable Commands:")
     print("=" * 50)
     
     if not COMMANDS_BY_CATEGORY:
@@ -84,9 +82,7 @@ dce6 Available Commands:")
     for category in sorted(COMMANDS_BY_CATEGORY.keys()):
         # Format category name
         category_display = category.replace('_', ' ').title()
-        print(f"\n
-d83d
-dd39 {category_display} Commands:")
+        print(f"\n{category_display} Commands:")
         print("-" * 30)
         
         # Sort commands within category
