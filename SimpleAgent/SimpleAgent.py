@@ -25,6 +25,13 @@ from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
 from core.agent import SimpleAgent
 from core.config import OPENAI_API_KEY, MAX_STEPS
 
+# Import benchmark modules
+try:
+    from benchmark.test_framework import discover_and_run_tests, generate_status_markdown, save_status_file
+    BENCHMARK_AVAILABLE = True
+except ImportError:
+    BENCHMARK_AVAILABLE = False
+
 # Initialize commands
 commands.init()
 
@@ -43,10 +50,53 @@ def main():
                       help='Auto-continue for N steps (default: 10 if no number provided)')
     parser.add_argument('-m', '--max-steps', type=int, default=10,
                       help='Maximum number of steps to run (default: 10)')
-    parser.add_argument('instruction', nargs='+', help='The instruction for the AI agent')
+    parser.add_argument('-b', '--benchmark', action='store_true',
+                      help='Run benchmark tests for all commands')
+    parser.add_argument('-s', '--status', action='store_true',
+                      help='Generate a status report for all commands without running tests')
+    parser.add_argument('-o', '--output', default=None,
+                      help='Output file path for status.md (default: SimpleAgent/status.md)')
+    parser.add_argument('instruction', nargs='*', help='The instruction for the AI agent')
     
     # Parse arguments
     args = parser.parse_args()
+    
+    # Run benchmarks if requested
+    if args.benchmark:
+        if not BENCHMARK_AVAILABLE:
+            print("Error: Benchmark module not available. Please install it first.")
+            return 1
+        
+        print("Running benchmark tests for all commands...")
+        results = discover_and_run_tests()
+        status_md = generate_status_markdown(results)
+        output_path = save_status_file(status_md, args.output)
+        print(f"Benchmark tests completed! Status file saved to: {output_path}")
+        return 0
+    
+    # Generate status report if requested
+    if args.status:
+        if not BENCHMARK_AVAILABLE:
+            print("Error: Benchmark module not available. Please install it first.")
+            return 1
+        
+        status_path = args.output or os.path.join(os.path.dirname(__file__), 'status.md')
+        if os.path.exists(status_path):
+            print(f"Status report is available at: {status_path}")
+            with open(status_path, 'r', encoding='utf-8') as f:
+                # Print summary section
+                for line in f:
+                    print(line.strip())
+                    if line.strip() == "## Command Status by Category":
+                        break
+        else:
+            print(f"Status report not found. Run with --benchmark to generate it.")
+        return 0
+    
+    # Ensure instruction is provided if not running benchmarks or status
+    if not args.instruction:
+        parser.print_help()
+        return 1
     
     # Join the instruction parts back together
     instruction = ' '.join(args.instruction)
@@ -57,7 +107,9 @@ def main():
     # Initialize and run the agent
     agent = SimpleAgent()
     agent.run(instruction, max_steps=max_steps, auto_continue=args.auto)
+    
+    return 0
 
 
 if __name__ == "__main__":
-    main() 
+    sys.exit(main()) 

@@ -15,6 +15,7 @@ SimpleAgent is designed with the belief that AI agents don't need to be complex 
 - **Easy to Extend**: Add new capabilities by creating new command modules
 - **Change Summarization**: Automatically summarizes changes made using a cheaper GPT model
 - **Modular Architecture**: Core components are separated into their own modules
+- **Benchmarking System**: Comprehensive testing framework to verify command functionality
 
 ## Project Structure
 
@@ -34,8 +35,14 @@ SimpleAgent/
   │   │   ├── write_file/
   │   │   └── ...
   │   └── ...                # Other command categories
+  ├── benchmark/             # Benchmark tests
+  │   ├── __init__.py        # Benchmark package initialization
+  │   ├── test_framework.py  # Test discovery and execution framework
+  │   ├── test_file_ops.py   # Tests for file operations
+  │   └── ...                # Tests for other command categories
   ├── output/                # Generated files and input files directory
   ├── SimpleAgent.py          # Main entry point
+  ├── status.md              # Command status report
   ├── requirements.txt       # Dependencies
   └── .env                   # Environment variables (create from .env.example)
 ```
@@ -133,6 +140,25 @@ python SimpleAgent.py -a 10 "research and look into https://github.com/PyGithub/
 python SimpleAgent.py -a 10 "please research the latest in stock and look at the top 10 stock prices and write them to a file called 'stock_prices.txt'"
 ```
 
+## Running Benchmarks
+
+SimpleAgent includes a comprehensive benchmark system to verify that all commands are working correctly.
+
+To run the benchmark tests:
+
+```
+python SimpleAgent.py --benchmark
+```
+
+This will test all available commands and generate a status report in `status.md`.
+
+To view the status report without running the tests:
+
+```
+python SimpleAgent.py --status
+```
+
+For more information about benchmarks, see the [benchmark README](SimpleAgent/benchmark/README.md).
 
 ## Adding New Commands
 
