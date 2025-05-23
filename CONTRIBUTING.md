@@ -10,7 +10,7 @@ First of all, thanks for considering contributing to Simple-Agent-Core! We welco
 2. **Clone Your Fork**
    - Clone your fork locally to begin making changes.
    ```shell
-   git clone https://github.com/your-username/Simple-Agent-Core.git
+   git clone https://github.com/reagent-systems/Simple-Agent-Core
    ```
 
 3. **Create a Branch for Your Contribution**
