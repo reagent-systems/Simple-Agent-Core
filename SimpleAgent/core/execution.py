@@ -61,8 +61,6 @@ class ExecutionManager:
             return function_args
 
         modified_args = function_args.copy()
-        
-        # Handle different parameter names for different commands
         path_params = {
             "file_path": "file_path",
             "directory_path": "directory_path",
@@ -72,10 +70,9 @@ class ExecutionManager:
             "path": "path",
             "target_dir": "target_dir"  # Add target_dir for github_fork_clone
         }
-        
-        # Process all path parameters in the arguments
         for param_name in path_params.values():
             if param_name in modified_args:
+
                 # Always convert paths to be within output directory
                 modified_args[param_name] = get_secure_path(modified_args[param_name], self.output_dir)
                 
@@ -144,7 +141,6 @@ class ExecutionManager:
         if function_to_call:
             # Additional security check for file operations before execution
             if function_name in self.FILE_OPS:
-                # Find all path arguments
                 path_args = [v for k, v in function_args.items() 
                            if k in ["file_path", "directory_path", "target_file", "source_file", "destination", "path", "target_dir"]]
                 
@@ -176,8 +172,6 @@ class ExecutionManager:
                     if not is_within_output:
                         print(f"⚠️ SECURITY BLOCKED: Attempted to access path outside of output directory: {path}")
                         return "Operation blocked: Security violation - attempted to access path outside of output directory", None
-                
-                # Create any necessary subdirectories for file operations
                 path_arg = next((v for k, v in function_args.items() 
                               if k in ["file_path", "directory_path", "target_file", "target_dir"]), None)
                 if path_arg:

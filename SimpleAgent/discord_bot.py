@@ -20,6 +20,8 @@ import asyncio
 import builtins
 import threading
 import queue
+from commands import COMMAND_SCHEMAS
+import zipfile
 
 # Load environment variables
 load_dotenv()
@@ -209,27 +211,26 @@ async def send_output_files(thread: discord.Thread, output_dir: str):
         )
     
     await thread.send(embed=embed)
-    
-    # Send files in batches
-    files_to_send: List[discord.File] = []
-    total_size = 0
-    MAX_SIZE = 25 * 1024 * 1024  # 25MB Discord limit
-    
-    for filepath in files:
-        file_size = os.path.getsize(filepath)
-        if total_size + file_size > MAX_SIZE:
-            # Send current batch
-            if files_to_send:
-                await thread.send(files=files_to_send)
-                files_to_send = []
-                total_size = 0
-        
-        files_to_send.append(discord.File(filepath))
-        total_size += file_size
-    
-    # Send any remaining files
-    if files_to_send:
-        await thread.send(files=files_to_send)
+
+    # If more than 5 files, zip and send the zip
+    if len(files) > 5:
+        zip_path = os.path.join(output_dir, "all_files.zip")
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for file in files:
+                arcname = os.path.relpath(file, output_dir)
+                zipf.write(file, arcname=arcname)
+        await thread.send(files=[discord.File(zip_path)])
+        return
+
+    # Otherwise, send files in batches of up to 10
+    batch = []
+    for i, file in enumerate(files):
+        batch.append(discord.File(file))
+        if len(batch) == 10:
+            await thread.send(files=batch)
+            batch = []
+    if batch:
+        await thread.send(files=batch)
 
 def split_long_message(message: str, max_length: int = EMBED_DESCRIPTION_LIMIT) -> List[str]:
     """Split a long message into chunks that fit within Discord's embed limits."""
@@ -673,7 +674,7 @@ async def simpleagent(
         
         # Create or get SimpleAgent instance for this thread
         if thread_id not in agent_instances:
-            agent_instances[thread_id] = SimpleAgent()
+            agent_instances[thread_id] = SimpleAgent(output_dir=output_dir)
             setup_embed = discord.Embed(
                 title="🔧 SimpleAgent Instance Created",
                 description="Created new SimpleAgent instance for this thread",
@@ -1206,6 +1207,58 @@ async def stop_agent(interaction: discord.Interaction):
             ),
             ephemeral=True
         )
+
+@tree.command(
+    name="list_tools",
+    description="List all available tools (commands) with their descriptions"
+)
+async def list_tools(interaction: discord.Interaction):
+    """List all registered tools/commands as a pretty, readable embed with one field per tool."""
+    await interaction.response.defer(ephemeral=True)  # Defer, so Discord doesn't show 'Failed to reply'
+    await interaction.followup.send("Tools sent to channel!", ephemeral=True)  # Quick ephemeral confirmation
+
+    if not COMMAND_SCHEMAS:
+        await interaction.channel.send(
+            embed=discord.Embed(
+                title="No Tools Registered",
+                description="No tools (commands) are currently registered.",
+                color=discord.Color.red()
+            )
+        )
+        return
+    
+    # Discord embed field limit is 25 fields per embed
+    MAX_FIELDS = 25
+    embeds = []
+    part = 1
+    current_embed = discord.Embed(
+        title=f"🛠️ Available Tools (Part {part})",
+        color=discord.Color.blurple()
+    )
+    field_count = 0
+    for i, schema in enumerate(COMMAND_SCHEMAS):
+        func = schema.get("function", {})
+        name = func.get("name", "<unknown>")
+        desc = func.get("description", "No description available.")
+        # Truncate description if too long for a field
+        if len(desc) > 1000:
+            desc = desc[:997] + "..."
+        current_embed.add_field(name=f"`{name}`", value=desc, inline=False)
+        field_count += 1
+        if field_count == MAX_FIELDS:
+            current_embed.set_footer(text=f"Use these tool names in your instructions! | Part {part}")
+            embeds.append(current_embed)
+            part += 1
+            current_embed = discord.Embed(
+                title=f"🛠️ Available Tools (Part {part})",
+                color=discord.Color.blurple()
+            )
+            field_count = 0
+    if field_count > 0:
+        current_embed.set_footer(text="Use these tool names in your instructions!" + (f" | Part {part}" if part > 1 else ""))
+        embeds.append(current_embed)
+    for embed in embeds:
+        await interaction.channel.send(embed=embed)
 
 if __name__ == "__main__":
     run_bot() 

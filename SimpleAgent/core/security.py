@@ -63,7 +63,7 @@ def get_secure_path(file_path: str, base_dir: str = OUTPUT_DIR) -> str:
     abs_combined_path = os.path.abspath(combined_path)
     
     if not abs_combined_path.startswith(abs_base_dir):
-        # If the path escapes output directory, fall back to just using filename in output dir
-        return os.path.join(base_dir, file_name)
-        
+        # If the path escapes output directory, block access
+        raise PermissionError(f"Security Error: Attempted to access file outside the output directory: {abs_combined_path}")
+
     return combined_path 
