@@ -61,6 +61,8 @@ class ExecutionManager:
             return function_args
 
         modified_args = function_args.copy()
+        
+        # Handle different parameter names for different commands
         path_params = {
             "file_path": "file_path",
             "directory_path": "directory_path",
@@ -70,9 +72,10 @@ class ExecutionManager:
             "path": "path",
             "target_dir": "target_dir"  # Add target_dir for github_fork_clone
         }
+        
+        # Process all path parameters in the arguments
         for param_name in path_params.values():
             if param_name in modified_args:
-<<<<<<< Updated upstream
                 # Always convert paths to be within output directory
                 modified_args[param_name] = get_secure_path(modified_args[param_name], self.output_dir)
                 
@@ -104,13 +107,6 @@ class ExecutionManager:
                             # Replace the argument with a file that doesn't exist to trigger the file not found error
                             modified_args[param_name] = os.path.join(self.output_dir, "FILE_ACCESS_DENIED")
                 
-=======
-                # Only rewrite if outside the thread's output dir
-                abs_path = os.path.abspath(modified_args[param_name])
-                abs_output_dir = os.path.abspath(self.output_dir)
-                if not abs_path.startswith(abs_output_dir):
-                    raise PermissionError(f"Security Error: Attempted to access file outside the output directory: {abs_path}")
->>>>>>> Stashed changes
         return modified_args
         
     def request_stop(self) -> bool:
@@ -148,8 +144,8 @@ class ExecutionManager:
         if function_to_call:
             # Additional security check for file operations before execution
             if function_name in self.FILE_OPS:
+                # Find all path arguments
                 path_args = [v for k, v in function_args.items() 
-<<<<<<< Updated upstream
                            if k in ["file_path", "directory_path", "target_file", "source_file", "destination", "path", "target_dir"]]
                 
                 # Verify all paths are within output directory
@@ -178,31 +174,20 @@ class ExecutionManager:
                     
                     # If path not within output directory, block the operation
                     if not is_within_output:
-=======
-                           if k in ["file_path", "directory_path", "target_file", "source_file", "destination", "path"]]
-                for path in path_args:
-                    abs_path = os.path.abspath(path)
-                    abs_output_dir = os.path.abspath(self.output_dir)
-                    if not abs_path.startswith(abs_output_dir):
->>>>>>> Stashed changes
                         print(f"⚠️ SECURITY BLOCKED: Attempted to access path outside of output directory: {path}")
                         return "Operation blocked: Security violation - attempted to access path outside of output directory", None
+                
+                # Create any necessary subdirectories for file operations
                 path_arg = next((v for k, v in function_args.items() 
                               if k in ["file_path", "directory_path", "target_file", "target_dir"]), None)
                 if path_arg:
                     dir_path = os.path.dirname(path_arg) if function_name != "create_directory" else path_arg
                     if dir_path:
                         os.makedirs(dir_path, exist_ok=True)
-                
-makedirs(dir_path, exist_ok=True)
                         
-ath_arg) if function_name != "create_directory" else path_arg
-                    if dir_path:
-                        os.makedirs(dir_path, exist_ok=True)
-                
             # Execute the function with sanitized arguments
             function_response = function_to_call(**function_args)
-            self.custom_print(f"📊 Function result: {function_response}")
+            print(f"📊 Function result: {function_response}")
             
             # Track file operations for summarization
             if function_name in self.FILE_OPS:
@@ -216,7 +201,7 @@ ath_arg) if function_name != "create_directory" else path_arg
                 
             return function_response, change
         else:
-            self.custom_print(f"❌ Function {function_name} not found")
+            print(f"❌ Function {function_name} not found")
             return f"Function {function_name} not found", None
             
     def get_next_action(self, conversation_history: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -236,7 +221,7 @@ ath_arg) if function_name != "create_directory" else path_arg
             # Change to output directory for consistent operations
             if os.path.exists(self.output_dir):
                 os.chdir(self.output_dir)
-                self.custom_print(f"🔄 Changed working directory to: {os.getcwd()}")
+                print(f"🔄 Changed working directory to: {os.getcwd()}")
                 
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -251,10 +236,10 @@ ath_arg) if function_name != "create_directory" else path_arg
             return None
 
         except Exception as e:
-            self.custom_print(f"Error getting next action: {str(e)}")
+            print(f"Error getting next action: {str(e)}")
             return None
         finally:
             # Restore original working directory
             if os.getcwd() != original_cwd:
                 os.chdir(original_cwd)
-                self.custom_print(f"🔄 Restored working directory to: {original_cwd}") 
+                print(f"🔄 Restored working directory to: {original_cwd}") 

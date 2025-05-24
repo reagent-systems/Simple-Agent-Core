@@ -7,4 +7,3 @@ beautifulsoup4
 googlesearch-python
 PyGithub
 discord.py
-pyautogui

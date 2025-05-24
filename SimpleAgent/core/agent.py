@@ -28,16 +28,15 @@ class SimpleAgent:
     This class coordinates the conversation, execution, memory, and security modules.
     """
     
-    def __init__(self, model: str = None, output_dir: str = None):
+    def __init__(self, model: str = None):
         """
         Initialize the SimpleAgent agent.
         
         Args:
             model: The OpenAI model to use (defaults to config value)
-            output_dir: The output directory for file operations (defaults to config value)
         """
         self.model = model or DEFAULT_MODEL
-        self.output_dir = output_dir or OUTPUT_DIR
+        self.output_dir = OUTPUT_DIR
         
         # Create the run manager that will coordinate all operations
         self.run_manager = RunManager(model=self.model, output_dir=self.output_dir)
@@ -49,14 +48,6 @@ class SimpleAgent:
         
         # Initialize memory
         self.memory = self.memory_manager.get_memory()
-        
-    def set_output_dir(self, output_dir: str):
-        """
-        Update the output directory for the agent and all managers.
-        """
-        self.output_dir = output_dir
-        self.run_manager.output_dir = output_dir
-        self.execution_manager.output_dir = output_dir
         
     def run(self, user_instruction: str, max_steps: int = 10, auto_continue: int = 0):
         """
