@@ -13,7 +13,7 @@ from openai import OpenAI
 import commands
 from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
 from core.security import get_secure_path
-from core.config import OUTPUT_DIR, DEFAULT_MODEL, OPENAI_API_KEY
+from core.config import OUTPUT_DIR, DEFAULT_MODEL, OPENAI_API_KEY, API_BASE_URL, LOCAL_MODEL
 
 
 class ExecutionManager:
@@ -39,7 +39,18 @@ class ExecutionManager:
         """
         self.model = model
         self.output_dir = output_dir
-        self.client = OpenAI(api_key=OPENAI_API_KEY)
+        
+        # Initialize OpenAI client with optional custom base URL for LMStudio support
+        client_kwargs = {"api_key": OPENAI_API_KEY}
+        if API_BASE_URL:
+            client_kwargs["base_url"] = API_BASE_URL
+            # Use local model if specified, otherwise use the provided model
+            if LOCAL_MODEL:
+                self.model = LOCAL_MODEL
+            print(f"🔧 Using custom API base URL: {API_BASE_URL}")
+            print(f"🤖 Using model: {self.model}")
+        
+        self.client = OpenAI(**client_kwargs)
         self.stop_requested = False
         
         # Ensure output directory exists

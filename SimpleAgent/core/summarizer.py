@@ -8,7 +8,7 @@ using a cheaper GPT model.
 import os
 from typing import List, Dict, Any
 from openai import OpenAI
-from core.config import OPENAI_API_KEY, SUMMARIZER_MODEL
+from core.config import OPENAI_API_KEY, SUMMARIZER_MODEL, API_BASE_URL, LOCAL_MODEL
 
 
 class ChangeSummarizer:
@@ -20,7 +20,16 @@ class ChangeSummarizer:
             model: The OpenAI model to use for summarization (defaults to config value)
         """
         self.model = model or SUMMARIZER_MODEL
-        self.client = OpenAI(api_key=OPENAI_API_KEY)
+        
+        # Initialize OpenAI client with optional custom base URL for LMStudio support
+        client_kwargs = {"api_key": OPENAI_API_KEY}
+        if API_BASE_URL:
+            client_kwargs["base_url"] = API_BASE_URL
+            # Use local model if specified for summarization
+            if LOCAL_MODEL:
+                self.model = LOCAL_MODEL
+        
+        self.client = OpenAI(**client_kwargs)
         
     def summarize_changes(self, changes: List[Dict[str, Any]], is_step_summary: bool = False) -> str:
         """

@@ -1,0 +1,7 @@
+README.md
+setup.py
+simple_agent_core.egg-info/PKG-INFO
+simple_agent_core.egg-info/SOURCES.txt
+simple_agent_core.egg-info/dependency_links.txt
+simple_agent_core.egg-info/requires.txt
+simple_agent_core.egg-info/top_level.txt

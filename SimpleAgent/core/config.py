@@ -15,6 +15,10 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "gpt-4o")
 SUMMARIZER_MODEL = os.getenv("SUMMARIZER_MODEL", "gpt-3.5-turbo")
 
+# LMStudio/Local API settings
+API_BASE_URL = os.getenv("API_BASE_URL")  # Set to http://localhost:1234/v1 for LMStudio
+LOCAL_MODEL = os.getenv("LOCAL_MODEL")  # Model name for local inference
+
 # Output directory - All file operations MUST happen within this directory
 # Can be customized through environment variable
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
