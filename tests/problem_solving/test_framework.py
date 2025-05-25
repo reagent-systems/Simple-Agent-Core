@@ -106,13 +106,19 @@ class TestFramework:
         success_criteria_met = []
         success_criteria_failed = []
         
+        print(f"  Debug: Final state keys: {list(final_state.keys())}")
+        print(f"  Debug: Final state: {final_state}")
+        
         for criterion in test_case.success_criteria:
             try:
-                if criterion['check'](final_state):
+                result = criterion['check'](final_state)
+                if result:
                     success_criteria_met.append(criterion['name'])
                 else:
                     success_criteria_failed.append(criterion['name'])
+                print(f"  Debug: Criterion '{criterion['name']}' result: {result}")
             except Exception as e:
+                print(f"  Debug: Criterion '{criterion['name']}' failed with error: {str(e)}")
                 success_criteria_failed.append(f"{criterion['name']} (error: {str(e)})")
         
         return success_criteria_met, success_criteria_failed
@@ -123,9 +129,15 @@ class TestFramework:
         """
         final_state = {}
         
+        print(f"  Debug: Capturing final state for {test_case.task_id}")
+        print(f"  Debug: Temp dir: {temp_dir}")
+        print(f"  Debug: Temp dir contents: {os.listdir(temp_dir) if os.path.exists(temp_dir) else 'Directory does not exist'}")
+        
         if test_case.task_id == "file_creation":
             target_file = os.path.join(temp_dir, test_case.initial_state['target_file'])
+            print(f"  Debug: Looking for file: {target_file}")
             final_state['file_exists'] = os.path.exists(target_file)
+            print(f"  Debug: File exists: {final_state['file_exists']}")
             if final_state['file_exists']:
                 try:
                     with open(target_file, 'r') as f:
@@ -166,6 +178,7 @@ class TestFramework:
             final_state['modifications_successful'] = modifications_successful
         
         # For other test cases, we'll add basic state capture
+        print(f"  Debug: Final state after capture: {final_state}")
         return final_state
     
     def run_test(self, test_case: TestCase, implementation: str) -> TaskResult:
@@ -235,13 +248,19 @@ class TestFramework:
                 auto_continue=-1  # Auto-continue indefinitely
             )
             
+            print(f"  Agent run completed, capturing final state...")
+            
             # Capture the final state
             final_state = self._capture_final_state(test_case, temp_dir)
+            
+            print(f"  Final state captured, evaluating success criteria...")
             
             # Evaluate success criteria
             success_criteria_met, success_criteria_failed = self._evaluate_success_criteria(
                 test_case, final_state
             )
+            
+            print(f"  Success criteria evaluated: met={success_criteria_met}, failed={success_criteria_failed}")
             
             # Determine overall status
             if success_criteria_failed:
@@ -267,6 +286,9 @@ class TestFramework:
             )
             
         except Exception as e:
+            import traceback
+            print(f"  Exception occurred: {str(e)}")
+            print(f"  Traceback: {traceback.format_exc()}")
             error_messages.append(str(e))
             return TaskResult(
                 task_id=test_case.task_id,

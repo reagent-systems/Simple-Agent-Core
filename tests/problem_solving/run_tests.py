@@ -11,8 +11,8 @@ import time
 from datetime import datetime
 from typing import Dict, Any, List
 
-from .test_framework import TestFramework
-from .test_cases import TEST_CASES
+from test_framework import TestFramework
+from test_cases import TEST_CASES
 
 def run_comparison_tests():
     """

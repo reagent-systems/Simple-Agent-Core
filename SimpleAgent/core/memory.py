@@ -6,10 +6,9 @@ conversation history and file changes.
 """
 
 import os
+import json
 from typing import Dict, Any, List
 
-# Import commands package for file operations
-import commands
 from core.config import MEMORY_FILE, OUTPUT_DIR
 
 
@@ -35,17 +34,29 @@ class MemoryManager:
         Returns:
             The loaded memory or a new memory object if the file doesn't exist
         """
-        if commands.REGISTERED_COMMANDS["file_exists"](self.memory_file):
-            memory = commands.REGISTERED_COMMANDS["load_json"](self.memory_file)
-            print(f"Loaded memory from {self.memory_file}")
-            return memory
+        if os.path.exists(self.memory_file):
+            try:
+                with open(self.memory_file, 'r') as f:
+                    memory = json.load(f)
+                print(f"Loaded memory from {self.memory_file}")
+                return memory
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"Error loading memory from {self.memory_file}: {e}")
+                return {"conversations": [], "files_created": [], "files_modified": []}
         else:
             return {"conversations": [], "files_created": [], "files_modified": []}
             
     def save_memory(self) -> None:
         """Save the agent's memory to the memory file."""
-        commands.REGISTERED_COMMANDS["save_json"](self.memory_file, self.memory)
-        print(f"Saved memory to {self.memory_file}")
+        try:
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(self.memory_file), exist_ok=True)
+            
+            with open(self.memory_file, 'w') as f:
+                json.dump(self.memory, f, indent=2)
+            print(f"Saved memory to {self.memory_file}")
+        except IOError as e:
+            print(f"Error saving memory to {self.memory_file}: {e}")
         
     def add_conversation(self, conversation: List[Dict[str, Any]]) -> None:
         """

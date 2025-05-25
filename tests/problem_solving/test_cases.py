@@ -5,7 +5,7 @@ This module contains test cases that will be used to benchmark and compare
 the old and new problem-solving implementations.
 """
 
-from .test_framework import TestCase
+from test_framework import TestCase
 
 # Test Case 1: Simple File Creation
 FILE_CREATION_TEST = TestCase(
