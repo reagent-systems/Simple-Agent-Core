@@ -7,14 +7,23 @@ This module handles command execution and step management for SimpleAgent.
 import os
 import json
 import time
+import requests
 from typing import Dict, Any, List, Optional, Tuple, Callable
 
 from openai import OpenAI
 import commands
 from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
 from core.security import get_secure_path
-from core.config import OUTPUT_DIR, DEFAULT_MODEL, OPENAI_API_KEY
+from core.config import (
+    OUTPUT_DIR, DEFAULT_MODEL, OPENAI_API_KEY, AI_PROVIDER,
+    GEMINI_API_KEY, LMSTUDIO_BASE_URL, LMSTUDIO_API_KEY
+)
 
+# Try to import Gemini, but don't fail if not available
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
 
 class ExecutionManager:
     """
@@ -34,12 +43,31 @@ class ExecutionManager:
         Initialize the execution manager.
         
         Args:
-            model: The OpenAI model to use
+            model: The AI model to use
             output_dir: The output directory for file operations
         """
         self.model = model
         self.output_dir = output_dir
-        self.client = OpenAI(api_key=OPENAI_API_KEY)
+        self.provider = AI_PROVIDER.lower()
+        
+        # Initialize the appropriate client based on provider
+        if self.provider == "openai":
+            if not OPENAI_API_KEY:
+                raise ValueError("OPENAI_API_KEY is required for OpenAI provider")
+            self.client = OpenAI(api_key=OPENAI_API_KEY)
+        elif self.provider == "gemini":
+            if not genai:
+                raise ImportError("google-generativeai package required for Gemini. Install with: pip install google-generativeai")
+            if not GEMINI_API_KEY:
+                raise ValueError("GEMINI_API_KEY is required for Gemini provider")
+            genai.configure(api_key=GEMINI_API_KEY)
+            self.client = genai.GenerativeModel(model)
+        elif self.provider == "lmstudio":
+            self.client = None  # We'll use requests directly
+            self.base_url = LMSTUDIO_BASE_URL.rstrip('/')
+        else:
+            raise ValueError(f"Unsupported provider: {self.provider}. Supported providers: openai, gemini, lmstudio")
+        
         self.stop_requested = False
         
         # Ensure output directory exists
@@ -216,17 +244,26 @@ class ExecutionManager:
             if os.path.exists(self.output_dir):
                 os.chdir(self.output_dir)
                 print(f"🔄 Changed working directory to: {os.getcwd()}")
+            
+            # Route to appropriate provider
+            if self.provider == "openai":
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=conversation_history,
+                    tools=COMMAND_SCHEMAS,
+                    tool_choice="auto",
+                )
+                if response.choices and response.choices[0].message:
+                    return response.choices[0].message
+                    
+            elif self.provider == "gemini":
+                response = self._call_gemini(conversation_history)
+                return response
                 
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=conversation_history,
-                tools=COMMAND_SCHEMAS,
-                tool_choice="auto",
-            )
-
-            # Ensure the response structure is correct
-            if response.choices and response.choices[0].message:
-                return response.choices[0].message
+            elif self.provider == "lmstudio":
+                response = self._call_lmstudio(conversation_history)
+                return response
+                
             return None
 
         except Exception as e:
@@ -236,4 +273,53 @@ class ExecutionManager:
             # Restore original working directory
             if os.getcwd() != original_cwd:
                 os.chdir(original_cwd)
-                print(f"🔄 Restored working directory to: {original_cwd}") 
+                print(f"🔄 Restored working directory to: {original_cwd}")
+    
+    def _call_lmstudio(self, conversation_history: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Call LMStudio API (OpenAI-compatible)"""
+        payload = {
+            "model": self.model,
+            "messages": conversation_history,
+            "tools": COMMAND_SCHEMAS,
+            "tool_choice": "auto",
+            "stream": False
+        }
+        
+        headers = {"Content-Type": "application/json"}
+        if LMSTUDIO_API_KEY:
+            headers["Authorization"] = f"Bearer {LMSTUDIO_API_KEY}"
+        
+        response = requests.post(
+            f"{self.base_url}/v1/chat/completions",
+            json=payload,
+            headers=headers
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        if data.get("choices") and data["choices"][0].get("message"):
+            return data["choices"][0]["message"]
+        return None
+
+    def _call_gemini(self, conversation_history: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Call Gemini API with basic conversion"""
+        # Simple conversion - just take the last user message for now
+        # Note: This is a basic implementation. Full tool support would require more complex conversion
+        user_messages = [msg for msg in conversation_history if msg["role"] == "user"]
+        if not user_messages:
+            return None
+            
+        prompt = user_messages[-1]["content"]
+        
+        # For now, just do basic text generation (tools support can be added later)
+        try:
+            response = self.client.generate_content(prompt)
+            
+            # Convert back to OpenAI format
+            return {
+                "role": "assistant",
+                "content": response.text if hasattr(response, 'text') else str(response)
+            }
+        except Exception as e:
+            print(f"Error calling Gemini: {str(e)}")
+            return None 

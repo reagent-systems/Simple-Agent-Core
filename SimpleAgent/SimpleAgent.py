@@ -24,17 +24,30 @@ from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
 
 # Import core modules
 from core.agent import SimpleAgent
-from core.config import OPENAI_API_KEY, MAX_STEPS
+from core.config import OPENAI_API_KEY, GEMINI_API_KEY, AI_PROVIDER, LMSTUDIO_BASE_URL, MAX_STEPS
 from core.version import AGENT_VERSION
 
 # Initialize commands
 commands.init()
 
-# Check for API key
-if not OPENAI_API_KEY:
-    logging.error("Error: OPENAI_API_KEY environment variable not set.")
+# Check for appropriate API key based on provider
+provider = AI_PROVIDER.lower()
+if provider == "openai" and not OPENAI_API_KEY:
+    logging.error("Error: OPENAI_API_KEY environment variable not set for OpenAI provider.")
     logging.info("Please set it in a .env file or in your environment variables.")
     sys.exit(1)
+elif provider == "gemini" and not GEMINI_API_KEY:
+    logging.error("Error: GEMINI_API_KEY environment variable not set for Gemini provider.")
+    logging.info("Please set it in a .env file or in your environment variables.")
+    sys.exit(1)
+elif provider == "lmstudio":
+    # LMStudio doesn't require an API key, just log which provider is being used
+    logging.info(f"Using LMStudio provider at base URL: {LMSTUDIO_BASE_URL}")
+elif provider not in ["openai", "gemini", "lmstudio"]:
+    logging.error(f"Error: Unsupported AI provider '{provider}'. Supported providers: openai, gemini, lmstudio")
+    sys.exit(1)
+else:
+    logging.info(f"Using {provider} provider")
 
 
 def main():
