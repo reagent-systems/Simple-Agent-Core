@@ -111,13 +111,31 @@ MAX_STEPS=10
 DEBUG_MODE=False
 ```
 
+### Gemini Configuration (Google Gemini API)
+```
+# API Provider
+API_PROVIDER=gemini
+
+# Gemini API key
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Model settings
+DEFAULT_MODEL=gemini-2.0-flash
+SUMMARIZER_MODEL=gemini-2.0-flash
+
+# Application settings
+MAX_STEPS=10
+DEBUG_MODE=False
+```
+
 ### Configuration Options
 
-- **API_PROVIDER**: Set to `openai` for OpenAI API or `lmstudio` for LM-Studio
+- **API_PROVIDER**: Set to `openai` for OpenAI API, `lmstudio` for LM-Studio, or `gemini` for Google Gemini
 - **API_BASE_URL**: Required for LM-Studio, should point to your LM-Studio endpoint (e.g., `http://192.168.0.2:1234/v1`)
 - **OPENAI_API_KEY**: Required for OpenAI provider
+- **GEMINI_API_KEY**: Required for Gemini provider
 - **DEFAULT_MODEL**: The main model to use for agent operations
-- **SUMMARIZER_MODEL**: Model used for summarizing changes (can be the same as DEFAULT_MODEL for LM-Studio)
+- **SUMMARIZER_MODEL**: Model used for summarizing changes (can be the same as DEFAULT_MODEL for LM-Studio or Gemini)
 - **MAX_STEPS**: Maximum number of execution steps
 - **DEBUG_MODE**: Enable debug logging
 - **OUTPUT_DIR**: Directory for file operations (default: `output`)

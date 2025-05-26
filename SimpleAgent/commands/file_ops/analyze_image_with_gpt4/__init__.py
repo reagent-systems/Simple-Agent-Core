@@ -7,7 +7,7 @@ This module provides the analyze_image_with_gpt4 command for sending an image to
 import os
 from commands import register_command
 from core.security import get_secure_path
-from core.config import OUTPUT_DIR, create_openai_client, API_PROVIDER
+from core.config import OUTPUT_DIR, create_client, API_PROVIDER
 import base64
 
 # Use the vision-capable model (gpt-4o or gpt-4-vision-preview)
@@ -33,7 +33,7 @@ def analyze_image_with_gpt4(image_path: str, prompt: str) -> str:
         with open(secure_path, "rb") as img_file:
             img_bytes = img_file.read()
             img_b64 = base64.b64encode(img_bytes).decode("utf-8")
-            client = create_openai_client()
+            client = create_client()
             response = client.chat.completions.create(
                 model=VISION_MODEL,
                 messages=[
