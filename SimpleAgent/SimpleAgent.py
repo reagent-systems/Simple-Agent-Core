@@ -23,7 +23,7 @@ from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
 
 # Import core modules
 from core.agent import SimpleAgent
-from core.config import OPENAI_API_KEY, MAX_STEPS, API_PROVIDER, API_BASE_URL
+from core.config import OPENAI_API_KEY, MAX_STEPS, API_PROVIDER, API_BASE_URL, GEMINI_API_KEY, create_client
 from core.version import AGENT_VERSION
 
 # Initialize commands
@@ -43,8 +43,14 @@ elif API_PROVIDER == "openai":
         logging.info("Please set it in a .env file or in your environment variables.")
         sys.exit(1)
     logging.info("Using OpenAI provider")
+elif API_PROVIDER == "gemini":
+    if not GEMINI_API_KEY:
+        logging.error("Error: GEMINI_API_KEY environment variable not set for Gemini provider.")
+        logging.info("Please set it in a .env file or in your environment variables.")
+        sys.exit(1)
+    logging.info("Using Gemini provider")
 else:
-    logging.error(f"Error: Unknown API_PROVIDER '{API_PROVIDER}'. Supported providers: 'openai', 'lmstudio'")
+    logging.error(f"Error: Unknown API_PROVIDER '{API_PROVIDER}'. Supported providers: 'openai', 'lmstudio', 'gemini'")
     sys.exit(1)
 
 

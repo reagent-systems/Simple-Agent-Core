@@ -12,9 +12,10 @@ from openai import OpenAI
 load_dotenv()
 
 # API Provider settings
-API_PROVIDER = os.getenv("API_PROVIDER", "openai").lower()  # "openai" or "lmstudio"
+API_PROVIDER = os.getenv("API_PROVIDER", "openai").lower()  # "openai", "lmstudio", or "gemini"
 API_BASE_URL = os.getenv("API_BASE_URL", None)  # For LM-Studio: http://192.168.0.2:1234/v1
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Model settings
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "gpt-4o")
@@ -40,28 +41,29 @@ MAX_STEPS = int(os.getenv("MAX_STEPS", "10"))
 DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() == "true"
 
 
-def create_openai_client():
+def create_client():
     """
-    Create an OpenAI client based on the configured API provider.
-    
+    Create an API client based on the configured API provider.
     Returns:
-        OpenAI client configured for either OpenAI API or LM-Studio
+        API client for OpenAI, LM-Studio, or Gemini
     """
     if API_PROVIDER == "lmstudio":
         if not API_BASE_URL:
             raise ValueError("API_BASE_URL must be set when using LM-Studio provider")
-        
-        # For LM-Studio, we don't need a real API key, but the client requires one
-        # LM-Studio typically doesn't validate the API key
+        from openai import OpenAI
         api_key = OPENAI_API_KEY or "lm-studio-local"
-        
         return OpenAI(
             base_url=API_BASE_URL,
             api_key=api_key
         )
+    elif API_PROVIDER == "gemini":
+        if not GEMINI_API_KEY:
+            raise ValueError("GEMINI_API_KEY must be set when using Gemini provider")
+        from google import genai
+        return genai.Client(api_key=GEMINI_API_KEY)
     else:
         # Default to OpenAI
         if not OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY must be set when using OpenAI provider")
-        
+        from openai import OpenAI
         return OpenAI(api_key=OPENAI_API_KEY) 

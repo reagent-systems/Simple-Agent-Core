@@ -12,12 +12,12 @@ from typing import Dict, Any, List, Optional, Tuple, Callable
 import commands
 from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
 from core.security import get_secure_path
-from core.config import OUTPUT_DIR, DEFAULT_MODEL, create_openai_client
+from core.config import OUTPUT_DIR, DEFAULT_MODEL, create_client, API_PROVIDER
 
 
 class ExecutionManager:
     """
-    Manages command execution and step management for SimpleAgent.
+    Manages command execution and step management for SimpleAgent.6
     """
     
     # File operation commands that need path modification
@@ -38,7 +38,7 @@ class ExecutionManager:
         """
         self.model = model
         self.output_dir = output_dir
-        self.client = create_openai_client()
+        self.client = create_client()
         self.stop_requested = False
         
         # Ensure output directory exists
@@ -209,25 +209,36 @@ class ExecutionManager:
         """
         # Save current working directory
         original_cwd = os.getcwd()
-        
         try:
             # Change to output directory for consistent operations
             if os.path.exists(self.output_dir):
                 os.chdir(self.output_dir)
                 print(f"🔄 Changed working directory to: {os.getcwd()}")
-                
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=conversation_history,
-                tools=COMMAND_SCHEMAS,
-                tool_choice="auto",
-            )
 
-            # Ensure the response structure is correct
-            if response.choices and response.choices[0].message:
-                return response.choices[0].message
-            return None
-
+            if API_PROVIDER == "gemini":
+                # Convert conversation_history to a single string prompt for Gemini
+                prompt = "\n".join([
+                    (msg.get("content") if isinstance(msg.get("content"), str) else str(msg.get("content")))
+                    for msg in conversation_history if msg.get("role") == "user"
+                ])
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=prompt
+                )
+                if hasattr(response, "text"):
+                    return {"role": "assistant", "content": response.text}
+                return None
+            else:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=conversation_history,
+                    tools=COMMAND_SCHEMAS,
+                    tool_choice="auto",
+                )
+                # Ensure the response structure is correct
+                if response.choices and response.choices[0].message:
+                    return response.choices[0].message
+                return None
         except Exception as e:
             print(f"Error getting next action: {str(e)}")
             return None
