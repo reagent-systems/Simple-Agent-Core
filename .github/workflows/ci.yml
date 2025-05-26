@@ -37,4 +37,4 @@ jobs:
 
     - name: Run SimpleAgent test script
       run: |
-        python test_simple_agent.py 
+        python Tests/test_simple_agent.py 
