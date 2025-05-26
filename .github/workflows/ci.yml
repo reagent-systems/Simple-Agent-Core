@@ -28,6 +28,8 @@ jobs:
     - name: Set up GEMINI API key
       run: |
         echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
+        echo "DEFAULT_MODEL=gemini-2.5-flash-preview-05-20" >> $GITHUB_ENV
+        echo "SUMMARIZER_MODEL=gemini-2.5-flash-preview-05-20" >> $GITHUB_ENV
         echo "API_PROVIDER=gemini" >> $GITHUB_ENV
 
     - name: Set CI environment variable
