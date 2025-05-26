@@ -27,6 +27,9 @@ jobs:
     - name: Set environment variables
       run: echo "OPENAI_API_KEY=dummy-key" >> $GITHUB_ENV
 
+    - name: Set CI environment variable
+      run: echo "CI=true" >> $GITHUB_ENV
+
     - name: Run SimpleAgent test
       run: |
         python SimpleAgent/SimpleAgent.py "Say hello" 
