@@ -185,13 +185,18 @@ The user will be prompted after each step to continue or provide new instruction
                             break
                             
                         # Add the assistant's response to conversation history
-                        if assistant_message.content:
-                            print(f"\n🤖 Assistant: {assistant_message.content}")
+                        content = None
+                        if hasattr(assistant_message, 'content'):
+                            content = assistant_message.content
+                        elif isinstance(assistant_message, dict) and 'content' in assistant_message:
+                            content = assistant_message['content']
+                        if content:
+                            print(f"\n🤖 Assistant: {content}")
                         
                         # Create a proper assistant message for the conversation history
                         message_dict = {"role": "assistant"}
-                        if assistant_message.content:
-                            message_dict["content"] = assistant_message.content
+                        if content:
+                            message_dict["content"] = content
                         
                         # Add tool calls if present
                         if hasattr(assistant_message, 'tool_calls') and assistant_message.tool_calls:
@@ -246,8 +251,8 @@ The user will be prompted after each step to continue or provide new instruction
                         should_continue = True
                         needs_more_steps = False
                         
-                        if assistant_message.content:
-                            content_lower = assistant_message.content.lower()
+                        if content:
+                            content_lower = content.lower()
                             
                             # Check for completion phrases
                             if any(phrase in content_lower for phrase in [
@@ -287,7 +292,7 @@ The user will be prompted after each step to continue or provide new instruction
                         # Special handling in auto-mode: continue even if there are no tool calls
                         if (auto_steps_remaining == -1 or auto_steps_remaining > 0) and not hasattr(assistant_message, 'tool_calls'):
                             # In auto-mode, provide additional context to help the model continue
-                            if assistant_message.content and not any(phrase in content_lower for phrase in [
+                            if content and not any(phrase in content_lower for phrase in [
                                 "task complete", "i've completed", "all done", "finished", "completed successfully"
                             ]):
                                 print("\n🔄 Auto-mode: Encouraging model to continue making progress")
@@ -308,7 +313,7 @@ The user will be prompted after each step to continue or provide new instruction
                                     auto_steps_remaining -= 1
                                     
                                 # Check if the model is asking a question
-                                if not hasattr(assistant_message, 'tool_calls') and assistant_message.content and any(phrase in content_lower for phrase in [
+                                if not hasattr(assistant_message, 'tool_calls') and content and any(phrase in content_lower for phrase in [
                                     "do you need", "would you like", "let me know", "please specify", 
                                     "can you clarify", "if you need", "what would you like", "your preference",
                                     "should i", "do you want"
@@ -323,7 +328,7 @@ The user will be prompted after each step to continue or provide new instruction
                                     break
                                     
                                 # Check if the model is using outdated date references
-                                if assistant_message.content and any(outdated_year in content_lower for outdated_year in ["2020", "2021", "2022", "2023", "2024"]):
+                                if content and any(outdated_year in content_lower for outdated_year in ["2020", "2021", "2022", "2023", "2024"]):
                                     # Check if it's not referring to historical context
                                     if any(current_indicator in content_lower for current_indicator in ["current", "now", "today", "present", "currently"]):
                                         date_correction = f"Important correction: Today's date is {current_datetime}. Please use {current_year} as the current year for this task, not older years from your training data."
