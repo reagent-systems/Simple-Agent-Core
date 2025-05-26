@@ -2,8 +2,7 @@
 SimpleAgent - A minimalist AI agent framework
 
 This script implements a simple AI agent that can perform basic operations
-through function calling. It uses the OpenAI API to generate responses and
-execute functions based on user instructions.
+through function calling. It supports both OpenAI API and LM-Studio for local models.
 """
 
 import os
@@ -23,15 +22,27 @@ from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
 
 # Import core modules
 from core.agent import SimpleAgent
-from core.config import OPENAI_API_KEY, MAX_STEPS
+from core.config import OPENAI_API_KEY, MAX_STEPS, API_PROVIDER, API_BASE_URL
 
 # Initialize commands
 commands.init()
 
-# Check for API key
-if not OPENAI_API_KEY:
-    logging.error("Error: OPENAI_API_KEY environment variable not set.")
-    logging.info("Please set it in a .env file or in your environment variables.")
+# Check for proper configuration based on API provider
+if API_PROVIDER == "lmstudio":
+    if not API_BASE_URL:
+        logging.error("Error: API_BASE_URL environment variable not set for LM-Studio provider.")
+        logging.info("Please set API_BASE_URL to your LM-Studio endpoint (e.g., http://192.168.0.2:1234/v1)")
+        logging.info("You can set it in a .env file or in your environment variables.")
+        sys.exit(1)
+    logging.info(f"Using LM-Studio provider at: {API_BASE_URL}")
+elif API_PROVIDER == "openai":
+    if not OPENAI_API_KEY:
+        logging.error("Error: OPENAI_API_KEY environment variable not set for OpenAI provider.")
+        logging.info("Please set it in a .env file or in your environment variables.")
+        sys.exit(1)
+    logging.info("Using OpenAI provider")
+else:
+    logging.error(f"Error: Unknown API_PROVIDER '{API_PROVIDER}'. Supported providers: 'openai', 'lmstudio'")
     sys.exit(1)
 
 

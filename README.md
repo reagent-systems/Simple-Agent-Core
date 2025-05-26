@@ -75,23 +75,55 @@ This approach ensures all file operations are contained within a safe, dedicated
 
 ## Configuration
 
-SimpleAgent can be configured through environment variables in the `.env` file:
+SimpleAgent supports both OpenAI API and LM-Studio for local models. Configure through environment variables in the `.env` file:
 
+### OpenAI Configuration (Default)
 ```
+# API Provider
+API_PROVIDER=openai
+
 # OpenAI API key
 OPENAI_API_KEY=your_openai_api_key_here
 
 # Model settings
-DEFAULT_MODEL=gpt-4-turbo
+DEFAULT_MODEL=gpt-4o
 SUMMARIZER_MODEL=gpt-3.5-turbo
-
-# Memory settings
-MEMORY_FILE=memory.json
 
 # Application settings
 MAX_STEPS=10
 DEBUG_MODE=False
 ```
+
+### LM-Studio Configuration (Local Models)
+```
+# API Provider
+API_PROVIDER=lmstudio
+
+# LM-Studio endpoint
+API_BASE_URL=http://192.168.0.2:1234/v1
+
+# Model settings (use your LM-Studio model name)
+DEFAULT_MODEL=deepseek-r1-distill-llama-8b
+SUMMARIZER_MODEL=deepseek-r1-distill-llama-8b
+
+# Application settings
+MAX_STEPS=10
+DEBUG_MODE=False
+```
+
+### Configuration Options
+
+- **API_PROVIDER**: Set to `openai` for OpenAI API or `lmstudio` for LM-Studio
+- **API_BASE_URL**: Required for LM-Studio, should point to your LM-Studio endpoint (e.g., `http://192.168.0.2:1234/v1`)
+- **OPENAI_API_KEY**: Required for OpenAI provider
+- **DEFAULT_MODEL**: The main model to use for agent operations
+- **SUMMARIZER_MODEL**: Model used for summarizing changes (can be the same as DEFAULT_MODEL for LM-Studio)
+- **MAX_STEPS**: Maximum number of execution steps
+- **DEBUG_MODE**: Enable debug logging
+- **OUTPUT_DIR**: Directory for file operations (default: `output`)
+- **MEMORY_FILE**: Memory persistence file (default: `memory.json`)
+
+**Note**: When using LM-Studio, some features like image analysis may not be available as they require OpenAI's vision-capable models.
 
 ## Getting Started
 
@@ -106,6 +138,17 @@ Then
 ```
 pip install -r requirements.txt
 ```
+
+### Setting up Configuration
+
+1. Copy the example configuration:
+   ```
+   copy env_example.txt .env
+   ```
+
+2. Edit `.env` file with your settings:
+   - For OpenAI: Set your `OPENAI_API_KEY`
+   - For LM-Studio: Set `API_PROVIDER=lmstudio` and `API_BASE_URL` to your LM-Studio endpoint
 
 Now you can run the agent
 ```
