@@ -12,6 +12,7 @@ import json
 import time
 import argparse
 import logging
+import uuid
 from typing import List, Dict, Any, Optional, Callable
 
 # Set up basic logging configuration
@@ -24,6 +25,7 @@ from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
 # Import core modules
 from core.agent import SimpleAgent
 from core.config import OPENAI_API_KEY, MAX_STEPS
+from core.version import AGENT_VERSION
 
 # Initialize commands
 commands.init()
@@ -53,9 +55,18 @@ def main():
     
     # Ensure max_steps is at least as large as auto_continue
     max_steps = max(args.max_steps, args.auto) if args.auto > 0 else args.max_steps
-    
-    # Initialize and run the agent
-    agent = SimpleAgent()
+
+    # Create a unique output directory for this run
+    base_output_dir = os.path.abspath('output')
+    if not os.path.exists(base_output_dir):
+        os.makedirs(base_output_dir)
+    run_id = str(uuid.uuid4())[:8]
+    version_folder = 'v' + '_'.join(AGENT_VERSION.lstrip('v').split('.'))
+    run_output_dir = os.path.join(base_output_dir, f"{version_folder}_{run_id}")
+    os.makedirs(run_output_dir, exist_ok=True)
+
+    # Initialize and run the agent with the unique output directory
+    agent = SimpleAgent(output_dir=run_output_dir)
     agent.run(instruction, max_steps=max_steps, auto_continue=args.auto)
 
 
