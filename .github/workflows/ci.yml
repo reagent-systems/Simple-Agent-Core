@@ -35,6 +35,6 @@ jobs:
     - name: Set CI environment variable
       run: echo "CI=true" >> $GITHUB_ENV
 
-    - name: Run SimpleAgent test
+    - name: Run SimpleAgent test script
       run: |
-        python SimpleAgent/SimpleAgent.py "Say hello" 
+        python test_simple_agent.py 
