@@ -7,8 +7,7 @@ using a cheaper GPT model.
 
 import os
 from typing import List, Dict, Any
-from openai import OpenAI
-from core.config import OPENAI_API_KEY, SUMMARIZER_MODEL
+from core.config import SUMMARIZER_MODEL, create_openai_client
 
 
 class ChangeSummarizer:
@@ -17,10 +16,10 @@ class ChangeSummarizer:
         Initialize the ChangeSummarizer.
         
         Args:
-            model: The OpenAI model to use for summarization (defaults to config value)
+            model: The model to use for summarization (defaults to config value)
         """
         self.model = model or SUMMARIZER_MODEL
-        self.client = OpenAI(api_key=OPENAI_API_KEY)
+        self.client = create_openai_client()
         
     def summarize_changes(self, changes: List[Dict[str, Any]], is_step_summary: bool = False) -> str:
         """

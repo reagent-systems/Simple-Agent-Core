@@ -9,11 +9,10 @@ import json
 import time
 from typing import Dict, Any, List, Optional, Tuple, Callable
 
-from openai import OpenAI
 import commands
 from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
 from core.security import get_secure_path
-from core.config import OUTPUT_DIR, DEFAULT_MODEL, OPENAI_API_KEY
+from core.config import OUTPUT_DIR, DEFAULT_MODEL, create_openai_client
 
 
 class ExecutionManager:
@@ -34,12 +33,12 @@ class ExecutionManager:
         Initialize the execution manager.
         
         Args:
-            model: The OpenAI model to use
+            model: The model to use (OpenAI model name or LM-Studio model name)
             output_dir: The output directory for file operations
         """
         self.model = model
         self.output_dir = output_dir
-        self.client = OpenAI(api_key=OPENAI_API_KEY)
+        self.client = create_openai_client()
         self.stop_requested = False
         
         # Ensure output directory exists
