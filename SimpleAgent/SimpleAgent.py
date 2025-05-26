@@ -25,6 +25,7 @@ from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
 # Import core modules
 from core.agent import SimpleAgent
 from core.config import OPENAI_API_KEY, MAX_STEPS
+from core.version import AGENT_VERSION
 
 # Initialize commands
 commands.init()
@@ -59,8 +60,9 @@ def main():
     base_output_dir = os.path.abspath('output')
     if not os.path.exists(base_output_dir):
         os.makedirs(base_output_dir)
-    run_id = str(uuid.uuid4())
-    run_output_dir = os.path.join(base_output_dir, f"run_{run_id}")
+    run_id = str(uuid.uuid4())[:8]
+    version_folder = 'v' + '_'.join(AGENT_VERSION.lstrip('v').split('.'))
+    run_output_dir = os.path.join(base_output_dir, f"{version_folder}_{run_id}")
     os.makedirs(run_output_dir)
 
     # Initialize and run the agent with the unique output directory
