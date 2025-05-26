@@ -24,8 +24,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Set environment variables
-      run: echo "OPENAI_API_KEY=dummy-key" >> $GITHUB_ENV
+    - name: Set up OpenAI API key
+      run: echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
 
     - name: Set CI environment variable
       run: echo "CI=true" >> $GITHUB_ENV
