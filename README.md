@@ -235,3 +235,13 @@ MY_COMMAND_SCHEMA = {
 
 register_command("my_command", my_command, MY_COMMAND_SCHEMA)
 ```
+
+## Continuous Integration (CI)
+
+This project uses GitHub Actions for CI. On every push or pull request to `main`, the workflow will:
+- Set up Python
+- Install dependencies from `requirements.txt`
+- Set a dummy `OPENAI_API_KEY`
+- Run a basic test of `SimpleAgent.py`
+
+See `.github/workflows/ci.yml` for details.

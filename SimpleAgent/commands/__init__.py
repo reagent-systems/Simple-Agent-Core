@@ -49,7 +49,11 @@ def discover_commands() -> None:
     """
     # Get the directory of the current package
     package_dir = os.path.dirname(__file__)
-    
+
+    # Determine if running in CI
+    skip_gui_commands = os.environ.get("CI", "").lower() == "true"
+    gui_commands = [("system_ops", "screenshot")]
+
     # Walk through all subdirectories
     for _, category_name, is_pkg in pkgutil.iter_modules([package_dir]):
         if is_pkg:
@@ -61,6 +65,10 @@ def discover_commands() -> None:
             
             # Walk through all modules in the category
             for _, command_name, _ in pkgutil.iter_modules([category_dir]):
+                # Skip GUI commands in CI
+                if skip_gui_commands and (category_name, command_name) in gui_commands:
+                    logging.info(f'Skipping GUI command module in CI: commands.{category_name}.{command_name}')
+                    continue
                 # Import the command module
                 importlib.import_module(f"commands.{category_name}.{command_name}")
                 logging.info(f'Importing command module: commands.{category_name}.{command_name}')
