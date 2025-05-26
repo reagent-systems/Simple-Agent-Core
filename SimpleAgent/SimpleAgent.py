@@ -63,7 +63,7 @@ def main():
     run_id = str(uuid.uuid4())[:8]
     version_folder = 'v' + '_'.join(AGENT_VERSION.lstrip('v').split('.'))
     run_output_dir = os.path.join(base_output_dir, f"{version_folder}_{run_id}")
-    os.makedirs(run_output_dir)
+    os.makedirs(run_output_dir, exist_ok=True)
 
     # Initialize and run the agent with the unique output directory
     agent = SimpleAgent(output_dir=run_output_dir)
