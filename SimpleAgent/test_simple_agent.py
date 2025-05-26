@@ -7,7 +7,7 @@ def run_agent_and_check():
     # Adjust the command as needed for your environment
     cmd = [
         sys.executable,  # This uses the current Python interpreter
-        "SimpleAgent.py",
+        "SimpleAgent/SimpleAgent.py",
         "-a", "1",
         "Say hello"
     ]
