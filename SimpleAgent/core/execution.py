@@ -9,7 +9,7 @@ import json
 import time
 from typing import Dict, Any, List, Optional, Tuple, Callable
 
-from core.tool_manager import REGISTERED_COMMANDS, COMMAND_SCHEMAS
+from core.tool_manager import REGISTERED_COMMANDS, COMMAND_SCHEMAS, load_tool
 from core.security import get_secure_path
 from core.config import OUTPUT_DIR, DEFAULT_MODEL, create_client, API_PROVIDER
 
@@ -135,6 +135,15 @@ class ExecutionManager:
         
         function_to_call = REGISTERED_COMMANDS.get(function_name)
         change = None
+        
+        # If function not found, try to load it dynamically
+        if not function_to_call:
+            print(f"🔧 Tool '{function_name}' not loaded, attempting dynamic loading...")
+            if load_tool(function_name):
+                function_to_call = REGISTERED_COMMANDS.get(function_name)
+                print(f"✅ Successfully loaded tool '{function_name}'")
+            else:
+                print(f"❌ Failed to load tool '{function_name}'")
         
         if function_to_call:
             # Additional security check for file operations before execution
