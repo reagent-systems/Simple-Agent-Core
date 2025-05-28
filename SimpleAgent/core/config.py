@@ -17,6 +17,9 @@ API_BASE_URL = os.getenv("API_BASE_URL", None)  # For LM-Studio: http://192.168.
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+# GitHub settings
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
 # Model settings
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "gpt-4o")
 SUMMARIZER_MODEL = os.getenv("SUMMARIZER_MODEL", "gpt-3.5-turbo")

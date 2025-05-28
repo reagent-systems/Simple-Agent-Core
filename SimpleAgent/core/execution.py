@@ -9,8 +9,7 @@ import json
 import time
 from typing import Dict, Any, List, Optional, Tuple, Callable
 
-import commands
-from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
+from core.tool_manager import REGISTERED_COMMANDS, COMMAND_SCHEMAS
 from core.security import get_secure_path
 from core.config import OUTPUT_DIR, DEFAULT_MODEL, create_client, API_PROVIDER
 

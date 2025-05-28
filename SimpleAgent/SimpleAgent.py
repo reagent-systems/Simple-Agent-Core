@@ -82,9 +82,13 @@ def main():
     run_output_dir = os.path.join(base_output_dir, f"{version_folder}_{run_id}")
     os.makedirs(run_output_dir, exist_ok=True)
 
-    # Initialize and run the agent with the unique output directory
-    agent = SimpleAgent(output_dir=run_output_dir)
-    agent.run(instruction, max_steps=max_steps, auto_continue=args.auto)
+    try:
+        # Initialize and run the agent with the unique output directory
+        agent = SimpleAgent(output_dir=run_output_dir)
+        agent.run(instruction, max_steps=max_steps, auto_continue=args.auto)
+    finally:
+        # Clean up tool manager resources
+        commands.cleanup()
 
 
 if __name__ == "__main__":
