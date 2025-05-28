@@ -16,6 +16,33 @@ SimpleAgent is designed with the belief that AI agents don't need to be complex 
 - **Change Summarization**: Automatically summarizes changes made using a cheaper GPT model
 - **Modular Architecture**: Core components are separated into their own modules
 
+## Tool Loading System
+
+SimpleAgent features a sophisticated dual-source tool loading system that automatically fetches tools from multiple sources:
+
+### 🌐 Remote Tool Repository
+- **Primary Source**: Tools are automatically fetched from the [Simple-Agent-Tools](https://github.com/reagent-systems/Simple-Agent-Tools) GitHub repository
+- **Optimized Loading**: Uses GitHub's Git Trees API to fetch the entire repository structure in just 2 API calls
+- **Categories Available**:
+  - `file_ops`: File operations (read, write, edit, delete, etc.)
+  - `github_ops`: GitHub operations (clone, create repos, manage PRs, etc.)
+  - `web_ops`: Web operations (scraping, API calls, link extraction, etc.)
+  - `data_ops`: Data analysis and processing tools
+  - `system_ops`: System-level operations (screenshots, etc.)
+  - More to be added soon!
+
+### 📁 Local Commands Directory
+- **Secondary Source**: Tools can also be loaded from the local `commands/` directory
+- **Override Capability**: Local tools take precedence over remote tools with the same name
+- **Development Friendly**: Perfect for developing and testing new tools before contributing them to the main repository
+
+### 🔧 How It Works
+1. **Initialization**: When SimpleAgent starts, it initializes the tool manager
+2. **Local Discovery**: First, it scans the local `commands/` directory for any custom tools
+3. **Remote Discovery**: Then, it fetches the complete tool catalog from the GitHub repository using optimized API calls
+4. **Tool Loading**: All discovered tools are loaded and made available to the agent
+5. **Automatic Cleanup**: Temporary resources are automatically cleaned up when the session ends
+
 ## Project Structure
 
 SimpleAgent is organized in a modular structure:
@@ -84,6 +111,9 @@ API_PROVIDER=openai
 
 # OpenAI API key
 OPENAI_API_KEY=your_openai_api_key_here
+
+# GitHub API token (optional but recommended for tool loading)
+GITHUB_TOKEN=your_github_personal_access_token_here
 
 # Model settings
 DEFAULT_MODEL=gpt-4o
@@ -197,9 +227,13 @@ python SimpleAgent.py -a 10 "please research the latest in stock and look at the
 
 ## Adding New Commands
 
-To add a new command:
+SimpleAgent supports adding commands in two ways:
 
-1. Create a new folder in the appropriate category directory (or create a new category)
+### 🏠 Local Commands (Development & Custom Tools)
+
+For developing new tools or adding custom functionality to your local instance:
+
+1. Create a new folder in the appropriate category directory under `commands/` (or create a new category)
 2. Create an `__init__.py` file in the folder
 3. Define your function and its schema in the `__init__.py` file
 4. Register the command using the `register_command` function
@@ -234,6 +268,44 @@ MY_COMMAND_SCHEMA = {
 }
 
 register_command("my_command", my_command, MY_COMMAND_SCHEMA)
+```
+
+### 🌐 Contributing to the Remote Repository
+
+To make your tools available to all SimpleAgent users:
+
+1. **Fork the Repository**: Fork [Simple-Agent-Tools](https://github.com/reagent-systems/Simple-Agent-Tools)
+2. **Add Your Tool**: Follow the same structure as local commands
+3. **Test Locally**: Test your tool in your local SimpleAgent instance first
+4. **Submit PR**: Create a pull request to the main repository
+5. **Community Benefit**: Once merged, your tool becomes available to all users automatically
+
+### 🔄 Tool Loading Priority
+
+When SimpleAgent initializes:
+1. **Local tools are loaded first** - giving you full control over your environment
+2. **Remote tools are loaded second** - providing the community tool catalog
+3. **Local tools override remote tools** - if you have a local tool with the same name as a remote tool, the local version takes precedence
+
+This system allows you to:
+- 🧪 **Develop and test** new tools locally
+- 🔧 **Customize existing tools** by creating local versions
+- 🚀 **Contribute back** to the community repository
+- 📦 **Benefit from community tools** automatically
+
+### 📁 Directory Structure for Local Commands
+
+```
+commands/
+  ├── file_ops/
+  │   ├── my_custom_file_tool/
+  │   │   └── __init__.py
+  │   └── ...
+  ├── my_custom_category/
+  │   ├── my_tool/
+  │   │   └── __init__.py
+  │   └── ...
+  └── ...
 ```
 
 ## Continuous Integration (CI)
