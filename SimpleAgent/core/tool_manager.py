@@ -65,17 +65,16 @@ class ToolManager:
         # Only log at debug level to reduce noise
         self.logger.debug(f'Registering command: {name} in category: {category}')
 
-    def fetch_github_directory_contents(self, path: str = "") -> List[Dict[str, Any]]:
+    def get_repository_tree(self) -> Optional[Dict[str, Any]]:
         """
-        Fetch directory contents from GitHub repository.
+        Get the entire repository tree structure using Git Trees API.
+        This is much more efficient than making individual API calls.
         
-        Args:
-            path: Path within the repository (default: root)
-            
         Returns:
-            List of file/directory information
+            Repository tree data, or None if failed
         """
-        url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/contents/{path}"
+        # First, get the default branch to get the latest commit SHA
+        repo_url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}"
         
         # Set up headers with authentication if token is available
         headers = {}
@@ -84,24 +83,40 @@ class ToolManager:
             headers["Accept"] = "application/vnd.github+json"
         
         try:
-            response = requests.get(url, headers=headers, timeout=10)
+            # Get repository info to get default branch
+            response = requests.get(repo_url, headers=headers, timeout=10)
             response.raise_for_status()
-            return response.json()
+            repo_info = response.json()
+            default_branch = repo_info.get('default_branch', 'main')
+            
+            # Get the tree SHA for the default branch
+            tree_url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/git/trees/{default_branch}?recursive=1"
+            
+            self.logger.info(f"🌳 Fetching entire repository tree from GitHub (branch: {default_branch})...")
+            response = requests.get(tree_url, headers=headers, timeout=30)
+            response.raise_for_status()
+            tree_data = response.json()
+            
+            if tree_data.get('truncated', False):
+                self.logger.warning("⚠️ Repository tree was truncated - some files may be missing")
+            
+            return tree_data
+            
         except requests.RequestException as e:
-            self.logger.error(f"Failed to fetch GitHub directory contents for {path}: {e}")
-            return []
+            self.logger.error(f"Failed to fetch repository tree: {e}")
+            return None
 
-    def fetch_github_file_content(self, path: str) -> Optional[str]:
+    def fetch_file_content_batch(self, file_paths: List[str]) -> Dict[str, str]:
         """
-        Fetch file content from GitHub repository.
+        Fetch multiple file contents efficiently.
         
         Args:
-            path: Path to the file in the repository
+            file_paths: List of file paths to fetch
             
         Returns:
-            File content as string, or None if failed
+            Dictionary mapping file path to content
         """
-        url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/contents/{path}"
+        file_contents = {}
         
         # Set up headers with authentication if token is available
         headers = {}
@@ -109,24 +124,108 @@ class ToolManager:
             headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
             headers["Accept"] = "application/vnd.github+json"
         
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            file_info = response.json()
-            
-            if file_info.get('encoding') == 'base64':
-                content = base64.b64decode(file_info['content']).decode('utf-8')
-                return content
-            else:
-                self.logger.error(f"Unexpected encoding for file {path}: {file_info.get('encoding')}")
-                return None
+        self.logger.info(f"📥 Fetching {len(file_paths)} tool files from GitHub...")
+        
+        for i, file_path in enumerate(file_paths):
+            try:
+                url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/contents/{file_path}"
+                response = requests.get(url, headers=headers, timeout=10)
+                response.raise_for_status()
+                file_info = response.json()
                 
-        except requests.RequestException as e:
-            self.logger.error(f"Failed to fetch GitHub file content for {path}: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"Failed to decode file content for {path}: {e}")
-            return None
+                if file_info.get('encoding') == 'base64':
+                    content = base64.b64decode(file_info['content']).decode('utf-8')
+                    file_contents[file_path] = content
+                    self.logger.debug(f"✅ Fetched {file_path} ({i+1}/{len(file_paths)})")
+                else:
+                    self.logger.error(f"❌ Unexpected encoding for {file_path}: {file_info.get('encoding')}")
+                    
+            except requests.RequestException as e:
+                if "rate limit" in str(e).lower():
+                    self.logger.warning(f"⚠️ Rate limit reached while fetching {file_path}. Consider using a GitHub token.")
+                    break
+                else:
+                    self.logger.error(f"❌ Failed to fetch {file_path}: {e}")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to decode {file_path}: {e}")
+        
+        return file_contents
+
+    def discover_github_tools_optimized(self) -> Dict[str, Dict[str, str]]:
+        """
+        Discover and fetch all tools from GitHub repository using optimized tree API.
+        
+        Returns:
+            Dictionary mapping category -> {filename: content}
+        """
+        github_tools = {}
+        
+        # Get the entire repository tree in one API call
+        tree_data = self.get_repository_tree()
+        if not tree_data:
+            return github_tools
+        
+        # Parse the tree to find all Python files in the commands directory
+        tool_files = []
+        commands_prefix = f"{GITHUB_COMMANDS_PATH}/"
+        
+        for item in tree_data.get('tree', []):
+            path = item.get('path', '')
+            item_type = item.get('type', '')
+            
+            # Only process files in the commands directory
+            if not path.startswith(commands_prefix):
+                continue
+                
+            # Only process Python files
+            if item_type == 'blob' and path.endswith('.py'):
+                # Skip __pycache__ files but include __init__.py files (they contain the tools)
+                if '__pycache__' in path:
+                    continue
+                    
+                tool_files.append(path)
+        
+        if not tool_files:
+            self.logger.warning("⚠️ No tool files found in repository")
+            return github_tools
+        
+        self.logger.info(f"🔍 Found {len(tool_files)} tool files in repository")
+        
+        # Fetch all file contents
+        file_contents = self.fetch_file_content_batch(tool_files)
+        
+        # Organize files by category
+        for file_path, content in file_contents.items():
+            # Extract category and tool name from path
+            # Expected format: commands/category/tool_name/__init__.py
+            path_parts = file_path.split('/')
+            
+            if len(path_parts) >= 4 and path_parts[-1] == '__init__.py':
+                # Format: commands/category/tool_name/__init__.py
+                category = path_parts[1]  # e.g., 'file_ops'
+                tool_name = path_parts[2]  # e.g., 'edit_file'
+                filename = f"{tool_name}.py"
+                
+                if category not in github_tools:
+                    github_tools[category] = {}
+                
+                github_tools[category][filename] = content
+                self.logger.debug(f"📦 Organized tool: {file_path} -> {category}/{filename}")
+            elif len(path_parts) >= 3 and not path_parts[-1] == '__init__.py':
+                # Format: commands/category/tool_name.py (direct Python file)
+                category = path_parts[1]  # e.g., 'file_ops'
+                filename = path_parts[2]  # e.g., 'tool_name.py'
+                
+                if category not in github_tools:
+                    github_tools[category] = {}
+                
+                github_tools[category][filename] = content
+                self.logger.debug(f"📦 Organized tool: {file_path} -> {category}/{filename}")
+        
+        total_tools = sum(len(files) for files in github_tools.values())
+        self.logger.info(f"✅ Successfully organized {total_tools} tools across {len(github_tools)} categories")
+        
+        return github_tools
 
     def create_temp_module_structure(self, github_tools: Dict[str, Dict[str, str]]) -> Optional[str]:
         """
@@ -171,70 +270,6 @@ class ToolManager:
             if self.temp_dir and os.path.exists(self.temp_dir):
                 shutil.rmtree(self.temp_dir)
             return None
-
-    def discover_github_tools(self) -> Dict[str, Dict[str, str]]:
-        """
-        Discover and fetch all tools from GitHub repository.
-        
-        Returns:
-            Dictionary mapping category -> {filename: content}
-        """
-        github_tools = {}
-        
-        # Get contents of the commands directory
-        commands_contents = self.fetch_github_directory_contents(GITHUB_COMMANDS_PATH)
-        
-        for item in commands_contents:
-            if item['type'] == 'dir':
-                category_name = item['name']
-                
-                # Skip special directories
-                if category_name.startswith('.') or category_name == '__pycache__':
-                    continue
-                
-                self.logger.debug(f"Discovering GitHub tools in category: {category_name}")
-                
-                # Get contents of the category directory
-                category_path = f"{GITHUB_COMMANDS_PATH}/{category_name}"
-                category_contents = self.fetch_github_directory_contents(category_path)
-                
-                category_files = {}
-                for tool_item in category_contents:
-                    if tool_item['type'] == 'dir':
-                        # Each tool is in its own directory
-                        tool_name = tool_item['name']
-                        tool_path = f"{category_path}/{tool_name}"
-                        
-                        # Get contents of the tool directory
-                        tool_contents = self.fetch_github_directory_contents(tool_path)
-                        
-                        for file_item in tool_contents:
-                            if file_item['type'] == 'file' and file_item['name'].endswith('.py'):
-                                file_path = f"{tool_path}/{file_item['name']}"
-                                file_content = self.fetch_github_file_content(file_path)
-                                
-                                if file_content:
-                                    # Use tool_name as the filename (without .py extension for __init__.py)
-                                    if file_item['name'] == '__init__.py':
-                                        filename = f"{tool_name}.py"
-                                    else:
-                                        filename = f"{tool_name}_{file_item['name']}"
-                                    
-                                    category_files[filename] = file_content
-                                    self.logger.debug(f"Fetched GitHub tool: {file_path} -> {filename}")
-                    elif tool_item['type'] == 'file' and tool_item['name'].endswith('.py'):
-                        # Handle direct Python files in category directory (fallback)
-                        file_path = f"{category_path}/{tool_item['name']}"
-                        file_content = self.fetch_github_file_content(file_path)
-                        
-                        if file_content:
-                            category_files[tool_item['name']] = file_content
-                            self.logger.debug(f"Fetched GitHub tool: {file_path}")
-                
-                if category_files:
-                    github_tools[category_name] = category_files
-        
-        return github_tools
 
     def load_github_tools(self, temp_module_path: str, github_tools: Dict[str, Dict[str, str]]) -> None:
         """
@@ -326,9 +361,9 @@ class ToolManager:
         self.discover_local_commands()
         local_tools_loaded = len(REGISTERED_COMMANDS) - local_count_before
         
-        # Then, discover and load GitHub tools
-        self.logger.info("🌐 Discovering GitHub tools...")
-        github_tools = self.discover_github_tools()
+        # Then, discover and load GitHub tools using optimized method
+        self.logger.info("🌐 Discovering GitHub tools (optimized)...")
+        github_tools = self.discover_github_tools_optimized()
         
         if github_tools:
             total_github_tools = sum(len(files) for files in github_tools.values())
