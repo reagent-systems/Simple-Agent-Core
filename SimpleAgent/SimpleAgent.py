@@ -17,6 +17,9 @@ from typing import List, Dict, Any, Optional, Callable
 # Set up basic logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+# Suppress httpx INFO messages (like HTTP request logs)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 # Import commands package
 import commands
 from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
@@ -26,8 +29,7 @@ from core.agent import SimpleAgent
 from core.config import OPENAI_API_KEY, MAX_STEPS, API_PROVIDER, API_BASE_URL, GEMINI_API_KEY, create_client
 from core.version import AGENT_VERSION
 
-# Initialize commands
-commands.init()
+# Commands will be initialized in main() based on user preference
 
 # Check for proper configuration based on API provider
 if API_PROVIDER == "lmstudio":
@@ -62,6 +64,8 @@ def main():
                       help='Auto-continue for N steps (default: 10 if no number provided)')
     parser.add_argument('-m', '--max-steps', type=int, default=10,
                       help='Maximum number of steps to run (default: 10)')
+    parser.add_argument('--eager-loading', action='store_true',
+                      help='Use eager loading (load all tools at startup) instead of dynamic loading')
     parser.add_argument('instruction', nargs='+', help='The instruction for the AI agent')
     
     # Parse arguments
@@ -69,6 +73,11 @@ def main():
     
     # Join the instruction parts back together
     instruction = ' '.join(args.instruction)
+    
+    # Initialize commands based on user preference
+    dynamic_loading = not args.eager_loading
+    print(f"🔧 Initializing tools with {'dynamic' if dynamic_loading else 'eager'} loading...")
+    commands.init(dynamic=dynamic_loading)
     
     # Ensure max_steps is at least as large as auto_continue
     max_steps = max(args.max_steps, args.auto) if args.auto > 0 else args.max_steps
@@ -82,9 +91,13 @@ def main():
     run_output_dir = os.path.join(base_output_dir, f"{version_folder}_{run_id}")
     os.makedirs(run_output_dir, exist_ok=True)
 
-    # Initialize and run the agent with the unique output directory
-    agent = SimpleAgent(output_dir=run_output_dir)
-    agent.run(instruction, max_steps=max_steps, auto_continue=args.auto)
+    try:
+        # Initialize and run the agent with the unique output directory
+        agent = SimpleAgent(output_dir=run_output_dir)
+        agent.run(instruction, max_steps=max_steps, auto_continue=args.auto)
+    finally:
+        # Clean up tool manager resources
+        commands.cleanup()
 
 
 if __name__ == "__main__":

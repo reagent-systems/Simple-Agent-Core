@@ -9,8 +9,7 @@ import json
 import time
 from typing import Dict, Any, List, Optional, Tuple, Callable
 
-import commands
-from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
+from core.tool_manager import REGISTERED_COMMANDS, COMMAND_SCHEMAS, load_tool
 from core.security import get_secure_path
 from core.config import OUTPUT_DIR, DEFAULT_MODEL, create_client, API_PROVIDER
 
@@ -137,6 +136,15 @@ class ExecutionManager:
         function_to_call = REGISTERED_COMMANDS.get(function_name)
         change = None
         
+        # If function not found, try to load it dynamically
+        if not function_to_call:
+            print(f"🔧 Tool '{function_name}' not loaded, attempting dynamic loading...")
+            if load_tool(function_name):
+                function_to_call = REGISTERED_COMMANDS.get(function_name)
+                print(f"✅ Successfully loaded tool '{function_name}'")
+            else:
+                print(f"❌ Failed to load tool '{function_name}'")
+        
         if function_to_call:
             # Additional security check for file operations before execution
             if function_name in self.FILE_OPS:
@@ -179,8 +187,35 @@ class ExecutionManager:
                         os.makedirs(dir_path, exist_ok=True)
                         
             # Execute the function with sanitized arguments
-            function_response = function_to_call(**function_args)
-            print(f"📊 Function result: {function_response}")
+            try:
+                function_response = function_to_call(**function_args)
+                print(f"📊 Function result: {function_response}")
+            except UnboundLocalError as e:
+                if "stop_words" in str(e) and function_name == "text_analysis":
+                    print(f"⚠️ Warning: text_analysis command has a scoping issue with 'stop_words' variable")
+                    print(f"   This occurs when 'summary' analysis is requested without 'keywords' analysis")
+                    print(f"   Retrying with both 'keywords' and requested analysis types...")
+                    
+                    # Fix the issue by ensuring keywords analysis is included
+                    if 'analysis_types' in function_args:
+                        analysis_types = function_args['analysis_types']
+                        if 'keywords' not in analysis_types:
+                            function_args['analysis_types'] = ['keywords'] + analysis_types
+                            print(f"   Modified analysis_types to: {function_args['analysis_types']}")
+                            
+                    # Retry the function call
+                    try:
+                        function_response = function_to_call(**function_args)
+                        print(f"📊 Function result (retry): {function_response}")
+                    except Exception as retry_e:
+                        print(f"❌ Retry failed: {str(retry_e)}")
+                        function_response = f"Error in {function_name}: {str(retry_e)}"
+                else:
+                    print(f"❌ UnboundLocalError in {function_name}: {str(e)}")
+                    function_response = f"Error in {function_name}: {str(e)}"
+            except Exception as e:
+                print(f"❌ Error executing {function_name}: {str(e)}")
+                function_response = f"Error in {function_name}: {str(e)}"
             
             # Track file operations for summarization
             if function_name in self.FILE_OPS:
