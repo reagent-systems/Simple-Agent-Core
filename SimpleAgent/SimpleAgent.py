@@ -17,6 +17,9 @@ from typing import List, Dict, Any, Optional, Callable
 # Set up basic logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+# Suppress httpx INFO messages (like HTTP request logs)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 # Import commands package
 import commands
 from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS

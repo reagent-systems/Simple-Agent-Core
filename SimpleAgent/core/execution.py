@@ -178,8 +178,35 @@ class ExecutionManager:
                         os.makedirs(dir_path, exist_ok=True)
                         
             # Execute the function with sanitized arguments
-            function_response = function_to_call(**function_args)
-            print(f"📊 Function result: {function_response}")
+            try:
+                function_response = function_to_call(**function_args)
+                print(f"📊 Function result: {function_response}")
+            except UnboundLocalError as e:
+                if "stop_words" in str(e) and function_name == "text_analysis":
+                    print(f"⚠️ Warning: text_analysis command has a scoping issue with 'stop_words' variable")
+                    print(f"   This occurs when 'summary' analysis is requested without 'keywords' analysis")
+                    print(f"   Retrying with both 'keywords' and requested analysis types...")
+                    
+                    # Fix the issue by ensuring keywords analysis is included
+                    if 'analysis_types' in function_args:
+                        analysis_types = function_args['analysis_types']
+                        if 'keywords' not in analysis_types:
+                            function_args['analysis_types'] = ['keywords'] + analysis_types
+                            print(f"   Modified analysis_types to: {function_args['analysis_types']}")
+                            
+                    # Retry the function call
+                    try:
+                        function_response = function_to_call(**function_args)
+                        print(f"📊 Function result (retry): {function_response}")
+                    except Exception as retry_e:
+                        print(f"❌ Retry failed: {str(retry_e)}")
+                        function_response = f"Error in {function_name}: {str(retry_e)}"
+                else:
+                    print(f"❌ UnboundLocalError in {function_name}: {str(e)}")
+                    function_response = f"Error in {function_name}: {str(e)}"
+            except Exception as e:
+                print(f"❌ Error executing {function_name}: {str(e)}")
+                function_response = f"Error in {function_name}: {str(e)}"
             
             # Track file operations for summarization
             if function_name in self.FILE_OPS:
