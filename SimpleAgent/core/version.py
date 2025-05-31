@@ -1,4 +1,4 @@
-AGENT_VERSION = 'v0.6.0'
+AGENT_VERSION = 'v0.8.0'
 
 # Updates Under Here
 # Added a verbose mode to the terminal to show the users more detail on what the agent is doing,
