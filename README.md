@@ -1,111 +1,96 @@
 # SimpleAgent
 
-A minimalist AI agent framework focused on simplicity and modularity.
+A sophisticated yet minimalist AI agent framework focused on simplicity, modularity, and intelligent execution.
 
 ## Philosophy
 
-SimpleAgent is designed with the belief that AI agents don't need to be complex to be useful. By focusing on a small set of core operations and using function calling for all interactions, SimpleAgent remains easy to understand, modify, and extend.
+SimpleAgent is designed with the belief that AI agents don't need to be complex to be useful. By focusing on a small set of core operations and using function calling for all interactions, SimpleAgent remains easy to understand, modify, and extend while providing advanced features like dynamic tool loading, loop detection, and intelligent execution management.
 
-## Features
+## 🚀 Key Features
 
-- **Minimalist Design**: Only essential components, no bloat
-- **Highly Modular Command System**: Each command is in its own folder for maximum modularity
-- **Function-Based Operations**: All actions are performed through clear function calls
-- **Transparent Execution**: See exactly what the agent is doing at each step
-- **Easy to Extend**: Add new capabilities by creating new command modules
-- **Change Summarization**: Automatically summarizes changes made using a cheaper GPT model
-- **Modular Architecture**: Core components are separated into their own modules
+### Core Architecture
+- **🎯 Minimalist Design**: Only essential components, no bloat
+- **🔧 Dynamic Tool Loading**: Advanced dual-source tool system with on-demand loading
+- **🧠 Intelligent Execution**: Smart loop detection and execution management
+- **🔒 Security-First**: Built-in security with sandboxed file operations
+- **🔄 Multi-Provider Support**: OpenAI, LM-Studio (local), and Google Gemini
+- **📊 Advanced Monitoring**: Execution tracking, change summarization, and memory management
 
-## Tool Loading System
+### Execution Intelligence
+- **🔄 Loop Detection**: Automatically detects and breaks repetitive patterns
+- **📝 Change Summarization**: Tracks and summarizes all modifications
+- **🧠 Memory Management**: Persistent memory across sessions
+- **⚡ Auto-Continue Mode**: Intelligent autonomous execution
+- **🛑 Graceful Stopping**: Smart task completion detection
+
+### Security & Isolation
+- **🔒 Sandboxed Operations**: All file operations contained within output directories
+- **🛡️ Path Security**: Prevents directory traversal attacks
+- **🔐 Secure Tool Loading**: Safe execution of remote tools
+- **📁 Session Isolation**: Each run gets its own secure workspace
+
+## 🛠️ Tool Loading System
 
 SimpleAgent features a sophisticated dual-source tool loading system that automatically fetches tools from multiple sources:
 
 ### 🌐 Remote Tool Repository
 - **Primary Source**: Tools are automatically fetched from the [Simple-Agent-Tools](https://github.com/reagent-systems/Simple-Agent-Tools) GitHub repository
-- **Optimized Loading**: Uses GitHub's Git Trees API to fetch the entire repository structure in just 2 API calls
+- **Dynamic Loading**: Tools are loaded on-demand to reduce startup time and memory usage
+- **Optimized Fetching**: Uses GitHub's Git Trees API for efficient repository access
 - **Categories Available**:
-  - `file_ops`: File operations (read, write, edit, delete, etc.)
+  - `file_ops`: File operations (read, write, edit, delete, smart PDF tools, etc.)
   - `github_ops`: GitHub operations (clone, create repos, manage PRs, etc.)
   - `web_ops`: Web operations (scraping, API calls, link extraction, etc.)
   - `data_ops`: Data analysis and processing tools
   - `system_ops`: System-level operations (screenshots, etc.)
-  - More to be added soon!
+  - `api_ops`: API development and testing tools
+  - More categories added regularly!
 
 ### 📁 Local Commands Directory
 - **Secondary Source**: Tools can also be loaded from the local `commands/` directory
 - **Override Capability**: Local tools take precedence over remote tools with the same name
 - **Development Friendly**: Perfect for developing and testing new tools before contributing them to the main repository
 
-### 🔧 How It Works
+### 🔧 How Dynamic Loading Works
 1. **Initialization**: When SimpleAgent starts, it initializes the tool manager
 2. **Local Discovery**: First, it scans the local `commands/` directory for any custom tools
 3. **Remote Discovery**: Then, it fetches the complete tool catalog from the GitHub repository using optimized API calls
-4. **Tool Loading**: All discovered tools are loaded and made available to the agent
+4. **On-Demand Loading**: Tools are loaded only when needed, reducing memory usage and startup time
 5. **Automatic Cleanup**: Temporary resources are automatically cleaned up when the session ends
 
-## Project Structure
+## 🏗️ Project Structure
 
 SimpleAgent is organized in a modular structure:
 
 ```
 SimpleAgent/
-  ├── core/                  # Core components
-  │   ├── __init__.py        # Core package initialization
-  │   ├── agent.py           # SimpleAgent agent implementation
-  │   ├── config.py          # Configuration settings
-  │   └── summarizer.py      # Change summarization functionality
-  ├── commands/              # Command modules
-  │   ├── __init__.py        # Command registration system
-  │   ├── file_ops/          # File operation commands
-  │   │   ├── read_file/
-  │   │   ├── write_file/
-  │   │   └── ...
-  │   └── ...                # Other command categories
-  ├── output/                # Generated files and input files directory
-  ├── SimpleAgent.py          # Main entry point
-  ├── requirements.txt       # Dependencies
-  └── .env                   # Environment variables (create from .env.example)
+├── core/                     # Core framework components
+│   ├── agent.py             # Main SimpleAgent class
+│   ├── run_manager.py       # Execution loop management
+│   ├── execution.py         # Command execution and step management
+│   ├── tool_manager.py      # Dynamic tool loading system
+│   ├── conversation.py      # Conversation history management
+│   ├── memory.py            # Persistent memory system
+│   ├── security.py          # Security and path validation
+│   ├── loop_detector.py     # Loop detection and breaking
+│   ├── summarizer.py        # Change summarization
+│   ├── config.py            # Configuration management
+│   └── version.py           # Version and changelog tracking
+├── commands/                 # Local command modules (optional)
+│   └── __init__.py          # Command registration system
+├── output/                   # Generated files and session data
+├── SimpleAgent.py           # Main entry point
+├── test_simple_agent.py     # Testing framework
+├── requirements.txt         # Python dependencies
+└── .env                     # Environment configuration
 ```
 
-## Command Structure
+## 🔧 Configuration
 
-SimpleAgent organizes commands in a hierarchical structure:
-
-```
-commands/
-  ├── file_ops/
-  │   ├── read_file/
-  │   │   └── __init__.py
-  │   ├── write_file/
-  │   │   └── __init__.py
-  │   ├── append_file/
-  │   │   └── __init__.py
-  │   └── ...
-  ├── web_ops/  (example future category)
-  │   ├── fetch_url/
-  │   │   └── __init__.py
-  │   └── ...
-  └── ...
-```
-
-## File Management
-
-SimpleAgent uses an `output` directory for all file operations:
-
-- **Generated Files**: All files created by SimpleAgent are stored in the `output` directory, organized by thread/session ID
-- **Reading Files**: To have SimpleAgent read your files:
-  1. Place the files you want SimpleAgent to read in the `output` directory
-  2. Reference the file using its name in your instruction (e.g., "read the file 'mydata.txt' from the output folder")
-  3. SimpleAgent will look for the file in the output directory and process it
-
-This approach ensures all file operations are contained within a safe, dedicated directory.
-
-## Configuration
-
-SimpleAgent supports both OpenAI API and LM-Studio for local models. Configure through environment variables in the `.env` file:
+SimpleAgent supports multiple AI providers and can be configured through environment variables in the `.env` file:
 
 ### OpenAI Configuration (Default)
-```
+```env
 # API Provider
 API_PROVIDER=openai
 
@@ -122,10 +107,11 @@ SUMMARIZER_MODEL=gpt-3.5-turbo
 # Application settings
 MAX_STEPS=10
 DEBUG_MODE=False
+OUTPUT_DIR=output
 ```
 
 ### LM-Studio Configuration (Local Models)
-```
+```env
 # API Provider
 API_PROVIDER=lmstudio
 
@@ -141,8 +127,8 @@ MAX_STEPS=10
 DEBUG_MODE=False
 ```
 
-### Gemini Configuration (Google Gemini API)
-```
+### Google Gemini Configuration
+```env
 # API Provider
 API_PROVIDER=gemini
 
@@ -160,160 +146,219 @@ DEBUG_MODE=False
 
 ### Configuration Options
 
-- **API_PROVIDER**: Set to `openai` for OpenAI API, `lmstudio` for LM-Studio, or `gemini` for Google Gemini
-- **API_BASE_URL**: Required for LM-Studio, should point to your LM-Studio endpoint (e.g., `http://192.168.0.2:1234/v1`)
+- **API_PROVIDER**: Set to `openai`, `lmstudio`, or `gemini`
+- **API_BASE_URL**: Required for LM-Studio, should point to your LM-Studio endpoint
 - **OPENAI_API_KEY**: Required for OpenAI provider
 - **GEMINI_API_KEY**: Required for Gemini provider
+- **GITHUB_TOKEN**: Optional but recommended for accessing remote tools
 - **DEFAULT_MODEL**: The main model to use for agent operations
-- **SUMMARIZER_MODEL**: Model used for summarizing changes (can be the same as DEFAULT_MODEL for LM-Studio or Gemini)
-- **MAX_STEPS**: Maximum number of execution steps
-- **DEBUG_MODE**: Enable debug logging
+- **SUMMARIZER_MODEL**: Model used for summarizing changes
+- **MAX_STEPS**: Maximum number of execution steps (default: 10)
+- **DEBUG_MODE**: Enable debug logging (default: False)
 - **OUTPUT_DIR**: Directory for file operations (default: `output`)
 - **MEMORY_FILE**: Memory persistence file (default: `memory.json`)
 
-**Note**: When using LM-Studio, some features like image analysis may not be available as they require OpenAI's vision-capable models.
+## 📁 File Management & Security
 
-## Getting Started
+SimpleAgent uses a sophisticated security system for file operations:
 
-First (in cmd)
-```
-cd SimpleAgent 
-python -m venv venv
-venv\Scripts\activate
-```
+### Security Features
+- **🔒 Sandboxed Operations**: All file operations are contained within designated output directories
+- **🛡️ Path Validation**: Prevents directory traversal attacks and unauthorized file access
+- **📁 Session Isolation**: Each run gets its own unique workspace
+- **🔐 Secure Tool Execution**: Remote tools are safely executed in isolated environments
 
-Then
-```
-pip install -r requirements.txt
-```
+### How It Works
+1. **Unique Workspaces**: Each run creates a versioned directory (e.g., `output/v0_8_2_5952029a/`)
+2. **Automatic Path Conversion**: All file paths are automatically converted to be within the output directory
+3. **Security Validation**: Multiple layers of validation prevent accessing files outside the workspace
+4. **Cleanup**: Temporary files and resources are automatically cleaned up after execution
 
-### Setting up Configuration
+### Reading Your Files
+To have SimpleAgent read your files:
+1. Place files in the output directory or any subdirectory
+2. Reference the file using its relative path in your instruction
+3. SimpleAgent will automatically find and process the file securely
 
-1. Copy the example configuration:
+## 🚀 Getting Started
+
+### Installation
+
+1. **Clone and Setup Environment**:
+   ```bash
+   git clone <repository-url>
+   cd Simple-Agent-Core
+   cd SimpleAgent
+   python -m venv venv
+   venv\Scripts\activate  # Windows
+   # or: source venv/bin/activate  # Linux/Mac
    ```
-   copy env_example.txt .env
+
+2. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
    ```
 
-2. Edit `.env` file with your settings:
-   - For OpenAI: Set your `OPENAI_API_KEY`
-   - For LM-Studio: Set `API_PROVIDER=lmstudio` and `API_BASE_URL` to your LM-Studio endpoint
+3. **Configuration Setup**:
+   ```bash
+   copy env_example.txt .env  # Windows
+   # or: cp env_example.txt .env  # Linux/Mac
+   ```
 
-Now you can run the agent
-```
-python SimpleAgent.py -a 10 "Your goal or instruction here"
-```
+4. **Edit Configuration**: Update `.env` with your API keys and settings
 
-Examples:
-```
-python SimpleAgent.py -a 10 "id like to make a python flask api that has the api /time and it simply replies the time, add a bunch of useful endpoints that can be used to get the current time, date, day, utc time, etc and more"
-```
+### Basic Usage
 
-```
-python SimpleAgent.py -a 10 "search the web for the latest news about AI and then write a summary of the news to a folder called news and into a file called news_summary.txt"
-```
+```bash
+# Run with auto-continue mode (10 steps)
+python SimpleAgent.py -a 10 "Create a Python Flask API with time endpoints"
 
-```
-python SimpleAgent.py -a 15 -m 20 "make a compiler using c that will compile Arduino code into a binary file"
-```
+# Run with manual mode (interactive)
+python SimpleAgent.py "Analyze the data in my CSV file and create a summary"
 
-```
-python SimpleAgent.py -a 10 "research and look into https://github.com/PyGithub/PyGithub, then make a docment called 'PyGitHub.txt' and do a writeup about the project"
+# Run with custom max steps and auto-continue
+python SimpleAgent.py -a 15 -m 20 "Build a web scraper for news articles"
+
+# Use dynamic loading (default) vs eager loading
+python SimpleAgent.py --eager-loading "Load all tools at startup"
 ```
 
-```
-python SimpleAgent.py -a 10 "please research the latest in stock and look at the top 10 stock prices and write them to a file called 'stock_prices.txt'"
-```
+### Example Commands
 
-
-## Adding New Commands
-
-SimpleAgent supports adding commands in two ways:
-
-### 🏠 Local Commands (Development & Custom Tools)
-
-For developing new tools or adding custom functionality to your local instance:
-
-1. Create a new folder in the appropriate category directory under `commands/` (or create a new category)
-2. Create an `__init__.py` file in the folder
-3. Define your function and its schema in the `__init__.py` file
-4. Register the command using the `register_command` function
-5. The command will be automatically discovered and available to the agent
-
-Example:
-
-```python
-# commands/my_category/my_command/__init__.py
-from commands import register_command
-
-def my_command(param1: str) -> str:
-    # Command implementation
-    return f"Processed {param1}"
-
-MY_COMMAND_SCHEMA = {
-    "type": "function",
-    "function": {
-        "name": "my_command",
-        "description": "Description of what the command does",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "param1": {
-                    "type": "string",
-                    "description": "Description of param1"
-                }
-            },
-            "required": ["param1"]
-        }
-    }
-}
-
-register_command("my_command", my_command, MY_COMMAND_SCHEMA)
+#### Web Development
+```bash
+python SimpleAgent.py -a 10 "Create a Python Flask API that has the endpoint /time and it simply replies the current time, add useful time-related endpoints"
 ```
 
-### 🌐 Contributing to the Remote Repository
+#### Research & Analysis
+```bash
+python SimpleAgent.py -a 10 "Search the web for the latest AI news and write a summary to a file called 'ai_news_summary.txt'"
+```
 
-To make your tools available to all SimpleAgent users:
+#### File Processing
+```bash
+python SimpleAgent.py -a 10 "Download and analyze this PDF: https://example.com/document.pdf and create a comprehensive summary"
+```
 
-1. **Fork the Repository**: Fork [Simple-Agent-Tools](https://github.com/reagent-systems/Simple-Agent-Tools)
-2. **Add Your Tool**: Follow the same structure as local commands
-3. **Test Locally**: Test your tool in your local SimpleAgent instance first
-4. **Submit PR**: Create a pull request to the main repository
-5. **Community Benefit**: Once merged, your tool becomes available to all users automatically
+#### GitHub Operations
+```bash
+python SimpleAgent.py -a 10 "Research https://github.com/PyGithub/PyGithub and create a document called 'PyGitHub.txt' with a detailed writeup"
+```
+
+#### Data Analysis
+```bash
+python SimpleAgent.py -a 10 "Analyze the stock market data and write the top 10 stock prices to 'stock_prices.txt'"
+```
+
+## 🧪 Command Line Options
+
+- `-a, --auto [N]`: Auto-continue for N steps (default: 10 if no number provided)
+- `-m, --max-steps N`: Maximum number of steps to run (default: 10)
+- `--eager-loading`: Load all tools at startup instead of dynamic loading
+- `instruction`: The task instruction for the AI agent
+
+## 🛠️ Adding New Tools
+
+SimpleAgent supports adding tools in two ways:
+
+### 🏠 Local Tools (Development & Custom)
+
+1. Create a new directory structure:
+   ```
+   commands/
+   └── my_category/
+       └── my_tool/
+           └── __init__.py
+   ```
+
+2. Implement your tool in `__init__.py`:
+   ```python
+   from commands import register_command
+
+   def my_tool(param1: str) -> str:
+       """Your tool implementation."""
+       return f"Processed {param1}"
+
+   MY_TOOL_SCHEMA = {
+       "type": "function",
+       "function": {
+           "name": "my_tool",
+           "description": "Description of what the tool does",
+           "parameters": {
+               "type": "object",
+               "properties": {
+                   "param1": {
+                       "type": "string",
+                       "description": "Description of param1"
+                   }
+               },
+               "required": ["param1"]
+           }
+       }
+   }
+
+   register_command("my_tool", my_tool, MY_TOOL_SCHEMA)
+   ```
+
+### 🌐 Contributing to Remote Repository
+
+1. **Fork**: Fork [Simple-Agent-Tools](https://github.com/reagent-systems/Simple-Agent-Tools)
+2. **Develop**: Create your tool following the same structure as local tools
+3. **Test**: Test locally first using the local tools system
+4. **Submit**: Create a pull request to contribute back to the community
 
 ### 🔄 Tool Loading Priority
 
-When SimpleAgent initializes:
-1. **Local tools are loaded first** - giving you full control over your environment
-2. **Remote tools are loaded second** - providing the community tool catalog
-3. **Local tools override remote tools** - if you have a local tool with the same name as a remote tool, the local version takes precedence
+1. **Local tools loaded first** - Full control over your environment
+2. **Remote tools loaded second** - Community tool catalog
+3. **Local tools override remote** - Local versions take precedence
 
-This system allows you to:
-- 🧪 **Develop and test** new tools locally
-- 🔧 **Customize existing tools** by creating local versions
-- 🚀 **Contribute back** to the community repository
-- 📦 **Benefit from community tools** automatically
+## 🧪 Testing & CI/CD
 
-### 📁 Directory Structure for Local Commands
+SimpleAgent includes automated testing and continuous integration:
 
-```
-commands/
-  ├── file_ops/
-  │   ├── my_custom_file_tool/
-  │   │   └── __init__.py
-  │   └── ...
-  ├── my_custom_category/
-  │   ├── my_tool/
-  │   │   └── __init__.py
-  │   └── ...
-  └── ...
+### Local Testing
+```bash
+python test_simple_agent.py
 ```
 
-## Continuous Integration (CI)
+### GitHub Actions CI
+- **Triggers**: Push/PR to main branch
+- **Environment**: Ubuntu with Python 3.10
+- **Provider**: Uses Google Gemini for testing (configured via secrets)
+- **Tests**: Basic functionality and tool loading
 
-This project uses GitHub Actions for CI. On every push or pull request to `main`, the workflow will:
-- Set up Python
-- Install dependencies from `requirements.txt`
-- Set a dummy `OPENAI_API_KEY`
-- Run a basic test of `SimpleAgent.py`
+See `.github/workflows/ci.yml` for detailed CI configuration.
 
-See `.github/workflows/ci.yml` for details.
+## 📈 Recent Updates (v0.8.2)
+
+### New Features
+- **🎯 Advanced Loop Detection**: Intelligent detection and breaking of repetitive execution patterns
+- **🔧 Dynamic Tool Loading**: On-demand tool loading for improved performance
+- **🔒 Improved Security**: Enhanced path validation and sandboxing
+- **📊 Better Monitoring**: Detailed execution tracking and verbose mode
+- **🔄 Multi-Provider Support**: Full support for OpenAI, LM-Studio, and Google Gemini
+- **🧠 Memory Management**: Persistent memory across sessions
+- **📁 File Management UI**: IDE-style file viewing and management
+- **🔧 Tool Usage Tracking**: Button-based tool usage visualization
+
+### Architecture Improvements
+- **Modular Core**: Split into specialized managers (RunManager, ExecutionManager, etc.)
+- **Enhanced Error Handling**: Better error recovery and reporting
+- **Performance Optimizations**: Reduced memory usage and faster startup
+- **Security Enhancements**: Multiple layers of security validation
+
+## 🤝 Contributing
+
+We welcome contributions! Please see:
+- **CONTRIBUTING.md** for contribution guidelines
+- **CODE_OF_CONDUCT.md** for our code of conduct
+- **Simple-Agent-Tools repository** for tool contributions
+
+## 📝 License
+
+This project is open source. Please check the repository for license details.
+
+---
+
+🚀 **SimpleAgent** - Because intelligence shouldn't require complexity!
