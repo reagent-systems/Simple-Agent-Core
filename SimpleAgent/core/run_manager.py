@@ -17,6 +17,7 @@ from core.conversation import ConversationManager
 from core.execution import ExecutionManager
 from core.memory import MemoryManager
 from core.summarizer import ChangeSummarizer
+from core.loop_detector import LoopDetector
 from core.config import OUTPUT_DIR
 
 
@@ -39,6 +40,7 @@ class RunManager:
         self.execution_manager = ExecutionManager(model=model, output_dir=output_dir)
         self.memory_manager = MemoryManager()
         self.summarizer = ChangeSummarizer()
+        self.loop_detector = LoopDetector(window_size=5, similarity_threshold=0.7)
         
     def run(self, user_instruction: str, max_steps: int = 10, auto_continue: int = 0):
         """
@@ -80,6 +82,9 @@ class RunManager:
             
             # Clear the conversation history and start fresh
             self.conversation_manager.clear()
+            
+            # Reset loop detector for a fresh start
+            self.loop_detector.reset()
             
             # Create system message
             system_message = {
@@ -214,6 +219,29 @@ The user will be prompted after each step to continue or provide new instruction
                         # Add the complete assistant message to the conversation
                         self.conversation_manager.conversation_history.append(message_dict)
                         
+                        # Loop Detection: Track this response and check for loops
+                        if content:
+                            has_tool_calls = hasattr(assistant_message, 'tool_calls') and assistant_message.tool_calls
+                            self.loop_detector.add_response(content, step, has_tool_calls)
+                            
+                            # Check for loops
+                            loop_info = self.loop_detector.detect_loop(step)
+                            if loop_info:
+                                print(f"\n🔄 LOOP DETECTED: {loop_info['type']} (severity: {loop_info['loop_severity']})")
+                                print(f"   Repeated {loop_info['count']} times across steps: {loop_info['steps_involved']}")
+                                
+                                # Generate loop-breaking message
+                                loop_breaking_message = self.loop_detector.generate_loop_breaking_message(
+                                    loop_info, user_instruction
+                                )
+                                
+                                # Inject the loop-breaking message into the conversation
+                                print(f"\n⚡ Injecting loop-breaking guidance...")
+                                self.conversation_manager.add_message("user", loop_breaking_message)
+                                
+                                # Skip the normal flow and continue to get a new response
+                                continue
+                        
                         # Reset step changes
                         step_changes = []
                         
@@ -260,7 +288,13 @@ The user will be prompted after each step to continue or provide new instruction
                                 "i've completed",
                                 "all done",
                                 "finished",
-                                "completed successfully"
+                                "completed successfully",
+                                "stopping execution",
+                                "choosing to stop",
+                                "decided to stop",
+                                "execution should stop",
+                                "best to stop",
+                                "stopping due to"
                             ]):
                                 print("\n✅ Task completed")
                                 break
@@ -291,9 +325,11 @@ The user will be prompted after each step to continue or provide new instruction
                         
                         # Special handling in auto-mode: continue even if there are no tool calls
                         if (auto_steps_remaining == -1 or auto_steps_remaining > 0) and not hasattr(assistant_message, 'tool_calls'):
-                            # In auto-mode, provide additional context to help the model continue
+                            # In auto-mode, provide additional context to help the model continue making progress
                             if content and not any(phrase in content_lower for phrase in [
-                                "task complete", "i've completed", "all done", "finished", "completed successfully"
+                                "task complete", "i've completed", "all done", "finished", "completed successfully",
+                                "stopping execution", "choosing to stop", "decided to stop", "execution should stop", 
+                                "best to stop", "stopping due to"
                             ]):
                                 print("\n🔄 Auto-mode: Encouraging model to continue making progress")
                                 self.conversation_manager.add_message("user", 
