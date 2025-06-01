@@ -242,14 +242,8 @@ class ExecutionManager:
         Returns:
             The assistant's message with the next action
         """
-        # Save current working directory
-        original_cwd = os.getcwd()
+        # No need to change directory here - the run manager handles this
         try:
-            # Change to output directory for consistent operations
-            if os.path.exists(self.output_dir):
-                os.chdir(self.output_dir)
-                print(f"🔄 Changed working directory to: {os.getcwd()}")
-
             if API_PROVIDER == "gemini":
                 # Convert conversation_history to a single string prompt for Gemini
                 prompt = "\n".join([
@@ -276,9 +270,4 @@ class ExecutionManager:
                 return None
         except Exception as e:
             print(f"Error getting next action: {str(e)}")
-            return None
-        finally:
-            # Restore original working directory
-            if os.getcwd() != original_cwd:
-                os.chdir(original_cwd)
-                print(f"🔄 Restored working directory to: {original_cwd}") 
+            return None 
