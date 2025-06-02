@@ -12,6 +12,9 @@ from core.memory import MemoryManager
 from core.run_manager import RunManager
 from core.security import get_secure_path
 
+# Terminal control system
+from core.terminal import TerminalManager, TerminalSession, register_terminal_commands
+
 __all__ = [
     "SimpleAgent", 
     "ChangeSummarizer",
@@ -19,5 +22,8 @@ __all__ = [
     "ExecutionManager",
     "MemoryManager",
     "RunManager",
-    "get_secure_path"
+    "get_secure_path",
+    "TerminalManager",
+    "TerminalSession",
+    "register_terminal_commands"
 ] 

@@ -9,3 +9,4 @@ PyGithub
 discord.py
 pyautogui
 google-genai
+psutil
