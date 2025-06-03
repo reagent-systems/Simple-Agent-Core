@@ -362,3 +362,4 @@ This project is open source. Please check the repository for license details.
 ---
 
 🚀 **SimpleAgent** - Because intelligence shouldn't require complexity!
+
