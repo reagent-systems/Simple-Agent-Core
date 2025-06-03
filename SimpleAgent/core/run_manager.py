@@ -90,6 +90,14 @@ class RunManager:
             system_message = {
                 "role": "system",
                 "content": """You are an AI agent that can manage its own execution steps.
+
+CRITICAL: Before responding, analyze the user's input to determine what type of interaction this is:
+- SOCIAL GREETING (hi, hello, hey): Respond warmly and briefly. After your response, say "task complete" because greetings are complete after one exchange.
+- SOCIAL PLEASANTRY (thanks, how are you): Respond appropriately and briefly, then say "task complete".
+- SIMPLE QUESTION (what time is it, who are you): Answer directly, then say "task complete" if no follow-up is needed.
+- ACTIONABLE TASK (create, build, analyze, search): This requires actual work and tool usage. Proceed with multiple steps as needed.
+- VAGUE/UNCLEAR: Either ask for clarification OR demonstrate capabilities, then evaluate if more is needed.
+
 You are currently running with the following capabilities:
 - You can stop execution early if the task is complete
 - You can continue automatically if more steps are needed
@@ -100,9 +108,10 @@ Your knowledge cutoff might be earlier, but you should consider the current date
 Always work with the understanding that it is now {current_year} when handling time-sensitive information.
 
 When responding:
-1. Always consider if the task truly needs more steps
-2. If a task is complete, include phrases like "task complete", "all done", "finished", or "completed successfully"
-3. If you need more steps than allocated, make this clear in your response
+1. FIRST: Identify if this is a social interaction (greeting, thanks, etc.) or an actual task
+2. For social interactions: Respond appropriately and include "task complete" 
+3. For actual tasks: Work toward completion using tools as needed
+4. If unclear whether more steps are needed, err on the side of stopping rather than continuing aimlessly
 
 {auto_mode_guidance}
 
@@ -151,20 +160,20 @@ Current execution context:
                     if auto_steps_remaining == -1:
                         auto_status = "enabled (infinite)"
                         auto_mode_guidance = """IMPORTANT: You are running in AUTO-CONTINUE mode with infinite steps. 
-Do NOT ask the user questions or for input during task execution. 
-Instead, make decisions independently and proceed with executing the task to completion.
-Your goal is to complete the requested task fully without human intervention."""
+However, do NOT continue indefinitely for simple interactions (greetings, thanks, etc.).
+For actual tasks: make decisions independently and proceed with executing the task to completion.
+For simple social interactions: respond appropriately and say "task complete" to end naturally."""
                     elif auto_steps_remaining > 0:
                         auto_status = f"enabled ({auto_steps_remaining} steps remaining)"
                         auto_mode_guidance = """IMPORTANT: You are running in AUTO-CONTINUE mode.
-Do NOT ask the user questions or for input during task execution.
-Instead, make decisions independently and proceed with executing the task.
-Your goal is to complete as much of the task as possible without human intervention."""
+However, do NOT waste steps on simple interactions (greetings, thanks, etc.).
+For actual tasks: make decisions independently and proceed with executing the task.
+For simple social interactions: respond appropriately and say "task complete" to end naturally."""
                     else:
                         auto_status = "disabled"
                         auto_mode_guidance = """You are running in MANUAL mode.
-If you need user input, make it clear by using phrases like "do you need", "would you like", etc.
-The user will be prompted after each step to continue or provide new instructions."""
+If you need user input for actual tasks, make it clear by using phrases like "do you need", "would you like", etc.
+For simple social interactions, just respond appropriately - no need to ask for more input."""
                         
                     # Update the system message
                     updated_system_content = system_message["content"].format(
