@@ -78,7 +78,18 @@ class RunManager:
             # Change to the output directory so all operations happen there
             if os.path.exists(self.output_dir):
                 os.chdir(self.output_dir)
-                print(f"🔄 Changed working directory to: {os.getcwd()}")
+                # Get relative path from output directory onwards
+                current_dir = os.getcwd()
+                # Find the last occurrence of 'output' to get the relative path
+                if 'output' in current_dir:
+                    output_index = current_dir.rfind('output')
+                    relative_path = current_dir[output_index:]
+                    # Convert to forward slashes for consistent display
+                    relative_path = relative_path.replace('\\', '/')
+                    print(f"🔄 Changed working directory to: {relative_path}")
+                else:
+                    # Fallback to full path if 'output' not found
+                    print(f"🔄 Changed working directory to: {current_dir}")
             
             # Clear the conversation history and start fresh
             self.conversation_manager.clear()
@@ -434,4 +445,4 @@ For simple social interactions, just respond appropriately - no need to ask for 
             # Always restore the original working directory
             if os.getcwd() != original_cwd:
                 os.chdir(original_cwd)
-                print(f"🔄 Restored working directory to: {original_cwd}") 
+
