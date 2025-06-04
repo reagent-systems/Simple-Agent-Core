@@ -186,7 +186,7 @@ To have SimpleAgent read your files:
 
 1. **Clone and Setup Environment**:
    ```bash
-   git clone [<repository-url>](https://github.com/reagent-systems/Simple-Agent-Core)
+   git clone https://github.com/reagent-systems/Simple-Agent-Core
    cd Simple-Agent-Core
    cd SimpleAgent
    python -m venv venv
