@@ -74,7 +74,21 @@ class DynamicToolManager:
             schema: The OpenAI function schema for the command
         """
         REGISTERED_COMMANDS[name] = func
-        COMMAND_SCHEMAS.append(schema)
+        
+        # Remove any existing placeholder schema for this command
+        existing_schema_index = None
+        for i, existing_schema in enumerate(COMMAND_SCHEMAS):
+            if existing_schema.get("function", {}).get("name") == name:
+                existing_schema_index = i
+                break
+        
+        if existing_schema_index is not None:
+            # Replace the placeholder schema with the real one
+            COMMAND_SCHEMAS[existing_schema_index] = schema
+            self.logger.debug(f'Replaced placeholder schema for {name} with real schema')
+        else:
+            # No existing schema, append the new one
+            COMMAND_SCHEMAS.append(schema)
         
         # Determine category from the module path
         module = func.__module__
