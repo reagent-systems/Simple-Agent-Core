@@ -20,14 +20,16 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 # GitHub settings
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
-# Model settings
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "gpt-4o")
-SUMMARIZER_MODEL = os.getenv("SUMMARIZER_MODEL", "gpt-3.5-turbo")
+# Model settings - Optimized for performance and cost
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "gpt-4o")  # Main agent (fast + powerful)
+METACOGNITION_MODEL = os.getenv("METACOGNITION_MODEL", "gpt-4")  # Reflection/analysis (thoughtful)
+SUMMARIZER_MODEL = os.getenv("SUMMARIZER_MODEL", "gpt-3.5-turbo")  # Summaries (fast + cheap)
 
 # For LM-Studio, we might want to use the same model for both
 if API_PROVIDER == "lmstudio":
     # Override models if LM-Studio specific models are set
     DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "deepseek-r1-distill-llama-8b")
+    METACOGNITION_MODEL = os.getenv("METACOGNITION_MODEL", "deepseek-r1-distill-llama-8b")
     SUMMARIZER_MODEL = os.getenv("SUMMARIZER_MODEL", "deepseek-r1-distill-llama-8b")
 
 # Output directory - All file operations MUST happen within this directory

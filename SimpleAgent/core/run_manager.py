@@ -18,13 +18,15 @@ from core.execution import ExecutionManager
 from core.memory import MemoryManager
 from core.summarizer import ChangeSummarizer
 from core.loop_detector import LoopDetector
+from core.metacognition import MetaCognition
+from core.prompts import prompts
 from core.config import OUTPUT_DIR
 
 
 class RunManager:
     """
     Manages the run loop for SimpleAgent, coordinating the conversation,
-    execution, and memory components.
+    execution, and memory components with intelligent metacognition.
     """
     
     def __init__(self, model: str, output_dir: str = OUTPUT_DIR):
@@ -42,6 +44,9 @@ class RunManager:
         self.summarizer = ChangeSummarizer()
         self.loop_detector = LoopDetector(window_size=5, similarity_threshold=0.7)
         
+        # Initialize the metacognition system with the same model client
+        self.metacognition = MetaCognition(self.execution_manager.client)
+        
     def run(self, user_instruction: str, max_steps: int = 10, auto_continue: int = 0):
         """
         Run the SimpleAgent with the given instruction.
@@ -51,12 +56,23 @@ class RunManager:
             max_steps: Maximum number of steps to run
             auto_continue: Number of steps to auto-continue (0 = disabled, -1 = infinite)
         """
-        # Reset stop flag
+        # Reset stop flag and intelligent systems
         self.execution_manager.stop_requested = False
+        self.metacognition.reset()
         
         # Setup initial console output
         print(f"\n🤖 SimpleAgent initialized with instruction: {user_instruction}")
         print(f"📁 Using output directory: {self.output_dir}")
+        
+        # Have the agent deeply analyze the task using metacognition
+        print("\n🧠 Agent analyzing task requirements...")
+        task_goal = self.metacognition.analyze_user_instruction(user_instruction)
+        print(f"🎯 Primary Objective: {task_goal.primary_objective}")
+        print(f"📋 Success Criteria: {', '.join(task_goal.success_criteria)}")
+        print(f"🔧 Complexity: {task_goal.estimated_complexity}")
+        print(f"🛠️ Requires Tools: {task_goal.requires_tools}")
+        if task_goal.expected_deliverables:
+            print(f"📦 Expected Deliverables: {', '.join(task_goal.expected_deliverables)}")
         
         # Get current date and time information for the system message
         current_datetime = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -97,42 +113,6 @@ class RunManager:
             # Reset loop detector for a fresh start
             self.loop_detector.reset()
             
-            # Create system message
-            system_message = {
-                "role": "system",
-                "content": """You are an AI agent that can manage its own execution steps.
-
-CRITICAL: Before responding, analyze the user's input to determine what type of interaction this is:
-- SOCIAL GREETING (hi, hello, hey): Respond warmly and briefly. After your response, say "task complete" because greetings are complete after one exchange.
-- SOCIAL PLEASANTRY (thanks, how are you): Respond appropriately and briefly, then say "task complete".
-- SIMPLE QUESTION (what time is it, who are you): Answer directly, then say "task complete" if no follow-up is needed.
-- ACTIONABLE TASK (create, build, analyze, search): This requires actual work and tool usage. Proceed with multiple steps as needed.
-- VAGUE/UNCLEAR: Either ask for clarification OR demonstrate capabilities, then evaluate if more is needed.
-
-You are currently running with the following capabilities:
-- You can stop execution early if the task is complete
-- You can continue automatically if more steps are needed
-- You should be mindful of the current step number and total steps available
-
-Current date and time: {current_datetime}
-Your knowledge cutoff might be earlier, but you should consider the current date when processing tasks.
-Always work with the understanding that it is now {current_year} when handling time-sensitive information.
-
-When responding:
-1. FIRST: Identify if this is a social interaction (greeting, thanks, etc.) or an actual task
-2. For social interactions: Respond appropriately and include "task complete" 
-3. For actual tasks: Work toward completion using tools as needed
-4. If unclear whether more steps are needed, err on the side of stopping rather than continuing aimlessly
-
-{auto_mode_guidance}
-
-Current execution context:
-- You are on step {current_step} of {max_steps} total steps
-- Auto-continue is {auto_status}
-"""
-            }
-            self.conversation_manager.add_message("system", system_message["content"])
-            
             # Add the user instruction to the conversation
             self.conversation_manager.add_message("user", user_instruction)
             
@@ -146,7 +126,7 @@ Current execution context:
             
             # If date-related, add a reminder about the current date
             if is_date_related:
-                date_reminder = f"Remember that today's date is {current_datetime} as you work on this task. All date-related calculations should use this as a reference point."
+                date_reminder = prompts.DATE_REMINDER.format(current_datetime=current_datetime)
                 print(f"📅 Adding date reminder: {date_reminder}")
                 self.conversation_manager.add_message("user", date_reminder)
             
@@ -154,7 +134,7 @@ Current execution context:
             changes_made = []
             step_changes = []  # Track changes for each step
             
-            # Run the agent loop
+            # Run the agent loop with metacognitive awareness
             step = 0
             # Ensure auto_steps_remaining is an integer (0 if auto_continue is None)
             auto_steps_remaining = 0 if auto_continue is None else auto_continue
@@ -167,35 +147,31 @@ Current execution context:
                     current_datetime = time.strftime("%Y-%m-%d %H:%M:%S")
                     current_year = time.strftime("%Y")
                     
-                    # Update the system message with current step information
+                    # Determine auto mode guidance
+                    auto_mode_guidance = prompts.get_auto_mode_guidance(auto_steps_remaining)
+                    
+                    # Determine auto status
                     if auto_steps_remaining == -1:
                         auto_status = "enabled (infinite)"
-                        auto_mode_guidance = """IMPORTANT: You are running in AUTO-CONTINUE mode with infinite steps. 
-However, do NOT continue indefinitely for simple interactions (greetings, thanks, etc.).
-For actual tasks: make decisions independently and proceed with executing the task to completion.
-For simple social interactions: respond appropriately and say "task complete" to end naturally."""
                     elif auto_steps_remaining > 0:
                         auto_status = f"enabled ({auto_steps_remaining} steps remaining)"
-                        auto_mode_guidance = """IMPORTANT: You are running in AUTO-CONTINUE mode.
-However, do NOT waste steps on simple interactions (greetings, thanks, etc.).
-For actual tasks: make decisions independently and proceed with executing the task.
-For simple social interactions: respond appropriately and say "task complete" to end naturally."""
                     else:
                         auto_status = "disabled"
-                        auto_mode_guidance = """You are running in MANUAL mode.
-If you need user input for actual tasks, make it clear by using phrases like "do you need", "would you like", etc.
-For simple social interactions, just respond appropriately - no need to ask for more input."""
                         
-                    # Update the system message
-                    updated_system_content = system_message["content"].format(
+                    # Create system message using centralized prompts
+                    system_content = prompts.format_main_system_prompt(
+                        primary_objective=task_goal.primary_objective,
+                        success_criteria=', '.join(task_goal.success_criteria),
+                        expected_deliverables=', '.join(task_goal.expected_deliverables),
+                        current_datetime=current_datetime,
+                        current_year=current_year,
+                        auto_mode_guidance=auto_mode_guidance,
                         current_step=step,
                         max_steps=max_steps,
-                        auto_status=auto_status,
-                        auto_mode_guidance=auto_mode_guidance,
-                        current_datetime=current_datetime,
-                        current_year=current_year
+                        auto_status=auto_status
                     )
-                    self.conversation_manager.update_system_message(updated_system_content)
+                    
+                    self.conversation_manager.update_system_message(system_content)
                     
                     print(f"\n--- Step {step}/{max_steps} ---")
                     
@@ -224,7 +200,11 @@ For simple social interactions, just respond appropriately - no need to ask for 
                             message_dict["content"] = content
                         
                         # Add tool calls if present
-                        if hasattr(assistant_message, 'tool_calls') and assistant_message.tool_calls:
+                        has_tool_calls = hasattr(assistant_message, 'tool_calls') and assistant_message.tool_calls
+                        tools_used = []
+                        tool_results = []
+                        
+                        if has_tool_calls:
                             message_dict["tool_calls"] = [
                                 {
                                     "id": tool_call.id,
@@ -239,42 +219,22 @@ For simple social interactions, just respond appropriately - no need to ask for 
                         # Add the complete assistant message to the conversation
                         self.conversation_manager.conversation_history.append(message_dict)
                         
-                        # Loop Detection: Track this response and check for loops
-                        if content:
-                            has_tool_calls = hasattr(assistant_message, 'tool_calls') and assistant_message.tool_calls
-                            self.loop_detector.add_response(content, step, has_tool_calls)
-                            
-                            # Check for loops
-                            loop_info = self.loop_detector.detect_loop(step)
-                            if loop_info:
-                                print(f"\n🔄 LOOP DETECTED: {loop_info['type']} (severity: {loop_info['loop_severity']})")
-                                print(f"   Repeated {loop_info['count']} times across steps: {loop_info['steps_involved']}")
-                                
-                                # Generate loop-breaking message
-                                loop_breaking_message = self.loop_detector.generate_loop_breaking_message(
-                                    loop_info, user_instruction
-                                )
-                                
-                                # Inject the loop-breaking message into the conversation
-                                print(f"\n⚡ Injecting loop-breaking guidance...")
-                                self.conversation_manager.add_message("user", loop_breaking_message)
-                                
-                                # Skip the normal flow and continue to get a new response
-                                continue
-                        
                         # Reset step changes
                         step_changes = []
                         
-                        # Handle any tool calls
-                        if hasattr(assistant_message, 'tool_calls') and assistant_message.tool_calls:
+                        # Handle any tool calls and collect information for reflection
+                        if has_tool_calls:
                             for tool_call in assistant_message.tool_calls:
                                 function_name = tool_call.function.name
                                 function_args = json.loads(tool_call.function.arguments)
+                                tools_used.append(function_name)
                                 
                                 # Execute the function
                                 function_response, change = self.execution_manager.execute_function(
                                     function_name, function_args
                                 )
+                                
+                                tool_results.append(str(function_response))
                                 
                                 # Track changes if any were made
                                 if change:
@@ -289,74 +249,72 @@ For simple social interactions, just respond appropriately - no need to ask for 
                                     name=function_name
                                 )
                         
+                        # **METACOGNITIVE REFLECTION** - Agent reflects on what it just did
+                        if content:
+                            print("\n🧠 Agent reflecting on action...")
+                            reflection = self.metacognition.reflect_on_action(
+                                step, content, tools_used, tool_results
+                            )
+                            
+                            if reflection:
+                                print(f"💭 Outcome: {reflection.outcome_achieved}")
+                                print(f"📈 Progress: {reflection.progress_made}")
+                                print(f"📋 Remaining: {reflection.remaining_work}")
+                                print(f"🎯 Confidence: {reflection.confidence_level:.2f}")
+                        
+                        # **INTELLIGENT STOPPING DECISION** - Agent decides if it should continue
+                        should_continue, reasoning, confidence = self.metacognition.should_task_continue(step, max_steps)
+                        
+                        if not should_continue:
+                            print(f"\n🧠 METACOGNITIVE DECISION: STOP")
+                            print(f"💡 Reasoning: {reasoning}")
+                            print(f"🎯 Confidence: {confidence:.2f}")
+                            print("\n✅ Task completed based on intelligent analysis")
+                            break
+                        else:
+                            print(f"\n🧠 METACOGNITIVE DECISION: CONTINUE")
+                            print(f"💡 Reasoning: {reasoning}")
+                            print(f"🎯 Confidence: {confidence:.2f}")
+                        
+                        # Check for old-style loops only if metacognition suggests continuing
+                        if content:
+                            self.loop_detector.add_response(content, step, has_tool_calls)
+                            loop_info = self.loop_detector.detect_loop(step)
+                            
+                            if loop_info and loop_info['loop_severity'] == 'high':
+                                print(f"\n🔄 HIGH-SEVERITY LOOP DETECTED: {loop_info['type']}")
+                                print(f"   Repeated {loop_info['count']} times across steps: {loop_info['steps_involved']}")
+                                
+                                # Ask metacognition to reconsider in light of the loop
+                                print("🧠 Metacognitive system reconsidering due to loop detection...")
+                                should_continue, reasoning, confidence = self.metacognition.should_task_continue(step, max_steps)
+                                
+                                if not should_continue:
+                                    print(f"🛑 Metacognitive decision: STOP due to loop + task analysis")
+                                    print(f"💡 Reasoning: {reasoning}")
+                                    break
+                                else:
+                                    # Generate loop-breaking message using centralized prompts
+                                    loop_breaking_message = prompts.format_loop_breaking_message(
+                                        loop_type=loop_info['type'],
+                                        severity=loop_info['loop_severity'], 
+                                        count=loop_info['count'],
+                                        steps=loop_info['steps_involved'],
+                                        original_instruction=user_instruction,
+                                        had_recent_actions=loop_info.get('recent_actions', False)
+                                    )
+                                    print(f"\n⚡ Injecting loop-breaking guidance...")
+                                    self.conversation_manager.add_message("user", loop_breaking_message)
+                                    continue
+                        
                         # Generate a summary of changes for this step if any were made
                         if step_changes:
                             step_summary = self.summarizer.summarize_changes(step_changes, is_step_summary=True)
                             if step_summary:
                                 print(f"\n{step_summary}")
                         
-                        # Check if the agent is done or needs to continue
-                        should_continue = True
-                        needs_more_steps = False
-                        
-                        if content:
-                            content_lower = content.lower()
-                            
-                            # Check for completion phrases
-                            if any(phrase in content_lower for phrase in [
-                                "task complete",
-                                "i've completed",
-                                "all done",
-                                "finished",
-                                "completed successfully",
-                                "stopping execution",
-                                "choosing to stop",
-                                "decided to stop",
-                                "execution should stop",
-                                "best to stop",
-                                "stopping due to"
-                            ]):
-                                print("\n✅ Task completed")
-                                break
-                                
-                            # Check if the assistant is just waiting for input
-                            elif not hasattr(assistant_message, 'tool_calls') and any(phrase in content_lower for phrase in [
-                                "do you need",
-                                "would you like",
-                                "let me know",
-                                "please specify",
-                                "can you clarify",
-                                "if you need"
-                            ]):
-                                # Only set should_continue to False in manual mode
-                                if auto_steps_remaining == 0:  # Only in manual mode
-                                    should_continue = False
-                                else:
-                                    print("\n🔄 In auto-mode: Continuing despite questions in response")
-                                    
-                            # Check if more steps are needed
-                            elif any(phrase in content_lower for phrase in [
-                                "need more steps",
-                                "additional steps required",
-                                "more steps needed",
-                                "cannot complete within current steps"
-                            ]):
-                                needs_more_steps = True
-                        
-                        # Special handling in auto-mode: continue even if there are no tool calls
-                        if (auto_steps_remaining == -1 or auto_steps_remaining > 0) and not hasattr(assistant_message, 'tool_calls'):
-                            # In auto-mode, provide additional context to help the model continue making progress
-                            if content and not any(phrase in content_lower for phrase in [
-                                "task complete", "i've completed", "all done", "finished", "completed successfully",
-                                "stopping execution", "choosing to stop", "decided to stop", "execution should stop", 
-                                "best to stop", "stopping due to"
-                            ]):
-                                print("\n🔄 Auto-mode: Encouraging model to continue making progress")
-                                self.conversation_manager.add_message("user", 
-                                    "Please continue with the next step of the task. Remember to use the available commands to make progress.")
-                        
-                        # Only continue if there's more to do
-                        if step < max_steps and should_continue and not self.execution_manager.stop_requested:
+                        # Handle continuation logic (now simplified since metacognition handles stopping)
+                        if step < max_steps and not self.execution_manager.stop_requested:
                             # Only show overall progress if there are changes and it's different from step summary
                             if changes_made:
                                 overall_summary = self.summarizer.summarize_changes(changes_made)
@@ -368,31 +326,21 @@ For simple social interactions, just respond appropriately - no need to ask for 
                                 if auto_steps_remaining > 0:  # Only decrement if it's a positive number
                                     auto_steps_remaining -= 1
                                     
-                                # Check if the model is asking a question
-                                if not hasattr(assistant_message, 'tool_calls') and content and any(phrase in content_lower for phrase in [
-                                    "do you need", "would you like", "let me know", "please specify", 
-                                    "can you clarify", "if you need", "what would you like", "your preference",
-                                    "should i", "do you want"
-                                ]):
-                                    print("\n🔄 Auto-mode: Automatically responding 'y' to continue despite questions")
-                                    # Add an automatic 'y' response in auto-mode to keep the flow going
-                                    self.conversation_manager.add_message("user", "y")
-                                
                                 # Check if a stop was requested
                                 if self.execution_manager.stop_requested:
                                     print("\n🛑 Stop requested. Halting auto-continue execution.")
                                     break
                                     
                                 # Check if the model is using outdated date references
-                                if content and any(outdated_year in content_lower for outdated_year in ["2020", "2021", "2022", "2023", "2024"]):
+                                if content and any(outdated_year in content.lower() for outdated_year in ["2020", "2021", "2022", "2023", "2024"]):
                                     # Check if it's not referring to historical context
-                                    if any(current_indicator in content_lower for current_indicator in ["current", "now", "today", "present", "currently"]):
-                                        date_correction = f"Important correction: Today's date is {current_datetime}. Please use {current_year} as the current year for this task, not older years from your training data."
+                                    if any(current_indicator in content.lower() for current_indicator in ["current", "now", "today", "present", "currently"]):
+                                        date_correction = prompts.DATE_CORRECTION.format(
+                                            current_datetime=current_datetime,
+                                            current_year=current_year
+                                        )
                                         print(f"\n📅 Auto-mode: Correcting outdated date reference")
                                         self.conversation_manager.add_message("user", date_correction)
-                                    
-                                if needs_more_steps:
-                                    print("\n⚠️ Note: Task requires more steps than currently allocated")
                                 
                                 print("\n🔄 Auto-continuing...")
                                 continue
@@ -414,11 +362,6 @@ For simple social interactions, just respond appropriately - no need to ask for 
                                 print(f"\n🧑 User: {user_input}")
                                 self.conversation_manager.add_message("user", user_input)
                         else:
-                            # If we're at max steps or have nothing more to do, break
-                            if not should_continue:
-                                print("\n✅ No further actions needed")
-                            elif needs_more_steps:
-                                print("\n⚠️ Reached maximum steps but task requires more steps")
                             break
                     
                     except Exception as e:
@@ -434,6 +377,21 @@ For simple social interactions, just respond appropriately - no need to ask for 
             if changes_made:
                 final_summary = self.summarizer.summarize_changes(changes_made)
                 print(f"\n📝 Final Summary of All Changes:\n{final_summary}")
+            
+            # Show the agent's final internal thoughts and progress
+            internal_thoughts = self.metacognition.get_internal_monologue()
+            if internal_thoughts:
+                print(f"\n🧠 Agent's Internal Monologue:")
+                for thought in internal_thoughts[-3:]:  # Show last 3 thoughts
+                    print(f"   💭 {thought}")
+            
+            progress_summary = self.metacognition.get_progress_summary()
+            if progress_summary.get("status") != "No active task":
+                print(f"\n📊 Final Task Analysis:")
+                print(f"   🎯 Goal: {progress_summary['goal']}")
+                print(f"   📋 Steps Completed: {progress_summary['steps_completed']}")
+                print(f"   🎯 Average Confidence: {progress_summary['average_confidence']:.2f}")
+                print(f"   ⏱️ Time Elapsed: {progress_summary['time_elapsed']:.1f} seconds")
             
             # Save the memory
             self.memory_manager.add_conversation(self.conversation_manager.get_history())
