@@ -766,7 +766,9 @@ class DynamicToolManager:
             
             if local_tools or remote_tools:
                 # Determine category display name
-                if category == 'file_ops':
+                if category == 'terminal':
+                    display_name = '🖥️ Terminal Control'
+                elif category == 'file_ops':
                     display_name = '📁 File Operations'
                 elif category == 'github_ops':
                     display_name = '🐙 GitHub Operations'
@@ -832,7 +834,9 @@ class DynamicToolManager:
         for category, commands in COMMANDS_BY_CATEGORY.items():
             for cmd in commands:
                 # Determine actual category from command name
-                if any(x in cmd for x in ['file', 'read', 'write', 'edit', 'delete', 'create_directory', 'list_directory', 'load_json', 'save_json', 'append']):
+                if any(x in cmd for x in ['execute_command', 'change_directory', 'set_environment_variable', 'list_sessions', 'list_active_processes', 'terminate_process', 'get_session_info']):
+                    actual_categories['🖥️ Terminal Control'].append(cmd)
+                elif any(x in cmd for x in ['file', 'read', 'write', 'edit', 'delete', 'create_directory', 'list_directory', 'load_json', 'save_json', 'append']):
                     actual_categories['📁 File Operations'].append(cmd)
                 elif any(x in cmd for x in ['github', 'git_', 'pr_', 'issue_']):
                     actual_categories['🐙 GitHub Operations'].append(cmd)
@@ -898,6 +902,14 @@ def init(dynamic: bool = True) -> None:
                 If False, use eager loading (all tools loaded at startup).
     """
     tool_manager = get_tool_manager()
+    
+    # Always register terminal commands first as they are core features
+    try:
+        from core.terminal import register_terminal_commands
+        register_terminal_commands()
+        tool_manager.logger.info("✅ Terminal control commands registered")
+    except ImportError as e:
+        tool_manager.logger.warning(f"⚠️ Failed to register terminal commands: {e}")
     
     if dynamic:
         tool_manager.initialize_dynamic_tools()
