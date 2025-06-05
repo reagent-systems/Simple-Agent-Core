@@ -7,6 +7,7 @@ This module handles command execution and step management for SimpleAgent.
 import os
 import json
 import time
+import inspect
 from typing import Dict, Any, List, Optional, Tuple, Callable
 
 from core.tool_manager import REGISTERED_COMMANDS, COMMAND_SCHEMAS, load_tool
@@ -217,7 +218,9 @@ class ExecutionManager:
                         
             # Execute the function with sanitized arguments
             try:
-                function_response = function_to_call(**function_args)
+                # Apply dynamic parameter mapping to handle parameter name mismatches
+                mapped_args = self._map_function_parameters(function_to_call, function_args)
+                function_response = function_to_call(**mapped_args)
                 print(f"📊 Function result: {function_response}")
             except Exception as e:
                 print(f"❌ Error executing {function_name}: {str(e)}")
@@ -277,3 +280,95 @@ class ExecutionManager:
         except Exception as e:
             print(f"Error getting next action: {str(e)}")
             return None 
+
+    def _map_function_parameters(self, function: Callable, function_args: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Map function arguments using the tool's schema.
+        
+        Args:
+            function: The function to call
+            function_args: The arguments from the LLM
+            
+        Returns:
+            Mapped arguments that match the function signature
+        """
+        try:
+            # Get the function signature
+            sig = inspect.signature(function)
+            expected_params = set(sig.parameters.keys())
+            provided_params = set(function_args.keys())
+            
+            # If all parameters match, no mapping needed
+            if provided_params.issubset(expected_params):
+                return function_args
+            
+            # Find the schema for this function
+            function_name = function.__name__
+            function_schema = None
+            
+            for schema in COMMAND_SCHEMAS:
+                schema_name = schema.get("function", {}).get("name")
+                if schema_name == function_name:
+                    function_schema = schema
+                    break
+            
+            if not function_schema:
+                print(f"⚠️ No schema found for {function_name}")
+                return function_args
+            
+            # Get expected parameter names from schema
+            schema_params = function_schema.get("function", {}).get("parameters", {}).get("properties", {})
+            schema_param_names = set(schema_params.keys())
+            
+            mapped_args = {}
+            
+            # Map parameters based on schema
+            for provided_key, value in function_args.items():
+                # Direct match with schema
+                if provided_key in schema_param_names:
+                    mapped_args[provided_key] = value
+                    continue
+                
+                # Case-insensitive match
+                matched = False
+                for schema_param in schema_param_names:
+                    if provided_key.lower() == schema_param.lower():
+                        mapped_args[schema_param] = value
+                        print(f"🔧 Parameter mapping: '{provided_key}' -> '{schema_param}' (case insensitive)")
+                        matched = True
+                        break
+                
+                # If no match, try partial matching (e.g., 'path' -> 'file_path')
+                if not matched:
+                    for schema_param in schema_param_names:
+                        # Enhanced partial matching for common variations
+                        provided_lower = provided_key.lower()
+                        schema_lower = schema_param.lower()
+                        
+                        # Check if they share common roots
+                        match_found = False
+                        
+                        # Common file/path parameter variations
+                        if (('file' in provided_lower or 'path' in provided_lower or 'name' in provided_lower) and 
+                            ('file' in schema_lower or 'path' in schema_lower)):
+                            match_found = True
+                        
+                        # Standard partial matching (substring check)
+                        elif (provided_lower in schema_lower or schema_lower in provided_lower):
+                            match_found = True
+                        
+                        if match_found and schema_param not in mapped_args:
+                            mapped_args[schema_param] = value
+                            print(f"🔧 Parameter mapping: '{provided_key}' -> '{schema_param}' (partial match)")
+                            matched = True
+                            break
+                
+                # If still no match, keep the original parameter name
+                if not matched:
+                    mapped_args[provided_key] = value
+            
+            return mapped_args
+            
+        except Exception as e:
+            print(f"⚠️ Parameter mapping failed: {e}")
+            return function_args 
