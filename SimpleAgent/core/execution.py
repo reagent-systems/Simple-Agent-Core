@@ -47,6 +47,7 @@ class ExecutionManager:
     def _modify_file_args(self, function_name: str, function_args: dict) -> dict:
         """
         Modify function arguments to ensure all file paths are within output directory.
+        This provides centralized security for all file operations.
         
         Args:
             function_name: Name of the function being called
@@ -59,50 +60,85 @@ class ExecutionManager:
             return function_args
 
         modified_args = function_args.copy()
-        path_params = {
-            "file_path": "file_path",
-            "directory_path": "directory_path",
-            "target_file": "target_file",
-            "source_file": "source_file",
-            "destination": "destination",
-            "path": "path",
-            "target_dir": "target_dir"  # Add target_dir for github_fork_clone
-        }
-        for param_name in path_params.values():
+        
+        # Common path parameter names that tools might use
+        path_params = [
+            "file_path", "filepath", "path", "filename", "file_name",
+            "directory_path", "dir_path", "directory", 
+            "target_file", "source_file", "destination", "target_dir"
+        ]
+        
+        for param_name in path_params:
             if param_name in modified_args:
-
                 # Always convert paths to be within output directory
                 modified_args[param_name] = get_secure_path(modified_args[param_name], self.output_dir)
                 
-                # For some operations (like read_file), verify the file exists within output directory
+                # For read operations, verify the file exists within output directory
                 if function_name in ["read_file", "edit_file", "append_file", "delete_file", "file_exists"]:
-                    # Get absolute paths for comparison
                     abs_path = os.path.abspath(modified_args[param_name])
                     abs_output_dir = os.path.abspath(self.output_dir)
                     
-                    # Handle the case of nested output directories
-                    is_within_output = False
-                    
-                    # Check direct path containment
-                    if abs_path.startswith(abs_output_dir):
-                        is_within_output = True
-                    
-                    # Check if path matches pattern of doubled output dir
-                    output_dir_name = os.path.basename(abs_output_dir)
-                    doubled_pattern = os.path.join(abs_output_dir, output_dir_name)
-                    if abs_path.startswith(doubled_pattern):
-                        is_within_output = True
-                        
-                    # Verify file exists and is within output directory
-                    if not os.path.exists(modified_args[param_name]) or not is_within_output:
-                        # For read operations, we want to be more strict
-                        if function_name == "read_file":
-                            # Return a clear security message instead of the file content
-                            print(f"⚠️ Security: Attempted to access file outside of output directory: {modified_args[param_name]}")
-                            # Replace the argument with a file that doesn't exist to trigger the file not found error
+                    if not abs_path.startswith(abs_output_dir):
+                        if not os.path.exists(modified_args[param_name]):
+                            print(f"⚠️ Security: File access restricted to output directory: {modified_args[param_name]}")
                             modified_args[param_name] = os.path.join(self.output_dir, "FILE_ACCESS_DENIED")
                 
         return modified_args
+        
+    def _validate_function_args(self, function_name: str, function_args: Dict[str, Any]) -> Optional[str]:
+        """
+        Validate function arguments against the tool's schema and provide helpful feedback.
+        
+        Args:
+            function_name: Name of the function being called
+            function_args: Arguments being passed to the function
+            
+        Returns:
+            Helpful message if there are parameter mismatches, None if all good
+        """
+        try:
+            # Find the schema for this function
+            function_schema = None
+            for schema in COMMAND_SCHEMAS:
+                if schema.get("function", {}).get("name") == function_name:
+                    function_schema = schema
+                    break
+            
+            if not function_schema:
+                return None
+            
+            # Get expected parameters from schema
+            schema_params = function_schema.get("function", {}).get("parameters", {}).get("properties", {})
+            required_params = set(function_schema.get("function", {}).get("parameters", {}).get("required", []))
+            
+            if not schema_params:
+                return None
+            
+            provided_params = set(function_args.keys())
+            expected_params = set(schema_params.keys())
+            
+            # Check for parameter mismatches
+            unexpected_params = provided_params - expected_params
+            missing_required = required_params - provided_params
+            
+            messages = []
+            
+            if unexpected_params:
+                expected_list = ', '.join(sorted(expected_params))
+                unexpected_list = ', '.join(sorted(unexpected_params))
+                messages.append(f"Unexpected parameters: {unexpected_list}. Expected: {expected_list}")
+            
+            if missing_required:
+                missing_list = ', '.join(sorted(missing_required))
+                messages.append(f"Missing required parameters: {missing_list}")
+            
+            if messages:
+                return f"Parameter validation for {function_name}: " + "; ".join(messages)
+            
+            return None
+            
+        except Exception:
+            return None
         
     def request_stop(self) -> bool:
         """
@@ -149,70 +185,40 @@ class ExecutionManager:
             # Additional security check for file operations before execution
             if function_name in self.FILE_OPS:
                 path_args = [v for k, v in function_args.items() 
-                           if k in ["file_path", "directory_path", "target_file", "source_file", "destination", "path", "target_dir"]]
+                           if k in ["file_path", "filepath", "path", "filename", "file_name", 
+                                   "directory_path", "dir_path", "directory", "target_file", 
+                                   "source_file", "destination", "target_dir"]]
                 
                 # Verify all paths are within output directory
                 for path in path_args:
                     abs_path = os.path.abspath(path)
                     abs_output_dir = os.path.abspath(self.output_dir)
                     
-                    # Handle the case of nested output directories
-                    # Check if the path contains the output directory anywhere in its path
-                    # This fixes the issue with paths like output\output\clix\file.txt
-                    is_within_output = False
-                    
-                    # Check direct path containment
-                    if abs_path.startswith(abs_output_dir):
-                        is_within_output = True
-                    
-                    # Check if path matches pattern of doubled output dir
-                    output_dir_name = os.path.basename(abs_output_dir)
-                    doubled_pattern = os.path.join(abs_output_dir, output_dir_name)
-                    if abs_path.startswith(doubled_pattern):
-                        is_within_output = True
+                    if not abs_path.startswith(abs_output_dir):
+                        # Allow git repository operations
+                        if function_name == "github_fork_clone" and any(segment in abs_path for segment in ["clix", ".git"]):
+                            continue
                         
-                    # If dealing with a git repository or other allowed operation
-                    if function_name == "github_fork_clone" and any(segment in abs_path for segment in ["clix", ".git"]):
-                        is_within_output = True
-                    
-                    # If path not within output directory, block the operation
-                    if not is_within_output:
                         print(f"⚠️ SECURITY BLOCKED: Attempted to access path outside of output directory: {path}")
                         return "Operation blocked: Security violation - attempted to access path outside of output directory", None
+                
+                # Create directories as needed
                 path_arg = next((v for k, v in function_args.items() 
-                              if k in ["file_path", "directory_path", "target_file", "target_dir"]), None)
+                              if k in ["file_path", "filepath", "path", "filename", "directory_path", "target_file", "target_dir"]), None)
                 if path_arg:
                     dir_path = os.path.dirname(path_arg) if function_name != "create_directory" else path_arg
                     if dir_path:
                         os.makedirs(dir_path, exist_ok=True)
+            
+            # Validate function arguments against schema (helpful for debugging)
+            schema_validation_result = self._validate_function_args(function_name, function_args)
+            if schema_validation_result:
+                print(f"💡 {schema_validation_result}")
                         
             # Execute the function with sanitized arguments
             try:
                 function_response = function_to_call(**function_args)
                 print(f"📊 Function result: {function_response}")
-            except UnboundLocalError as e:
-                if "stop_words" in str(e) and function_name == "text_analysis":
-                    print(f"⚠️ Warning: text_analysis command has a scoping issue with 'stop_words' variable")
-                    print(f"   This occurs when 'summary' analysis is requested without 'keywords' analysis")
-                    print(f"   Retrying with both 'keywords' and requested analysis types...")
-                    
-                    # Fix the issue by ensuring keywords analysis is included
-                    if 'analysis_types' in function_args:
-                        analysis_types = function_args['analysis_types']
-                        if 'keywords' not in analysis_types:
-                            function_args['analysis_types'] = ['keywords'] + analysis_types
-                            print(f"   Modified analysis_types to: {function_args['analysis_types']}")
-                            
-                    # Retry the function call
-                    try:
-                        function_response = function_to_call(**function_args)
-                        print(f"📊 Function result (retry): {function_response}")
-                    except Exception as retry_e:
-                        print(f"❌ Retry failed: {str(retry_e)}")
-                        function_response = f"Error in {function_name}: {str(retry_e)}"
-                else:
-                    print(f"❌ UnboundLocalError in {function_name}: {str(e)}")
-                    function_response = f"Error in {function_name}: {str(e)}"
             except Exception as e:
                 print(f"❌ Error executing {function_name}: {str(e)}")
                 function_response = f"Error in {function_name}: {str(e)}"
