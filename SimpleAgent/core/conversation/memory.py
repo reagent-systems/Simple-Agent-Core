@@ -9,7 +9,7 @@ import os
 import json
 from typing import Dict, Any, List
 
-from core.config import MEMORY_FILE, OUTPUT_DIR
+from core.utils.config import MEMORY_FILE, OUTPUT_DIR
 
 
 class MemoryManager:

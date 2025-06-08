@@ -25,9 +25,9 @@ import commands
 from commands import REGISTERED_COMMANDS, COMMAND_SCHEMAS
 
 # Import core modules
-from core.agent import SimpleAgent
-from core.config import OPENAI_API_KEY, MAX_STEPS, API_PROVIDER, API_BASE_URL, GEMINI_API_KEY, create_client
-from core.version import AGENT_VERSION
+from core.agent.agent import SimpleAgent
+from core.utils.config import OPENAI_API_KEY, MAX_STEPS, API_PROVIDER, API_BASE_URL, GEMINI_API_KEY, create_client
+from core.utils.version import AGENT_VERSION
 
 # Commands will be initialized in main() based on user preference
 

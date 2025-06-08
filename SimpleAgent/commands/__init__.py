@@ -4,12 +4,12 @@ Commands package for SimpleAgent.
 This package contains all the commands that SimpleAgent can execute.
 Commands are organized by category in subdirectories.
 
-This module now uses the new ToolManager from core.tool_manager to handle
+This module now uses the new ToolManager from core.execution.tool_manager to handle
 both local and remote (GitHub) tools with dynamic loading support.
 """
 
 # Import the new tool manager
-from core.tool_manager import (
+from core.execution.tool_manager import (
     REGISTERED_COMMANDS,
     COMMAND_SCHEMAS,
     register_command,

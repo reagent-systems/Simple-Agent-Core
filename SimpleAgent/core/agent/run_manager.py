@@ -13,14 +13,14 @@ import time
 import json
 from typing import List, Dict, Any, Optional
 
-from core.conversation import ConversationManager
-from core.execution import ExecutionManager
-from core.memory import MemoryManager
-from core.summarizer import ChangeSummarizer
-from core.loop_detector import LoopDetector
-from core.metacognition import MetaCognition
-from core.prompts import prompts
-from core.config import OUTPUT_DIR
+from core.conversation.conversation import ConversationManager
+from core.execution.execution import ExecutionManager
+from core.conversation.memory import MemoryManager
+from core.execution.summarizer import ChangeSummarizer
+from core.metacognition.loop_detector import LoopDetector
+from core.metacognition.metacognition import MetaCognition
+from core.metacognition.prompts import prompts
+from core.utils.config import OUTPUT_DIR
 
 
 class RunManager:

@@ -11,7 +11,7 @@ Security Notes:
 """
 
 import os
-from core.config import OUTPUT_DIR
+from core.utils.config import OUTPUT_DIR
 
 def get_secure_path(file_path: str, base_dir: str = OUTPUT_DIR) -> str:
     """
