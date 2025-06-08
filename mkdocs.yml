@@ -1,0 +1,54 @@
+site_name: Simple Agent Documentation
+site_description: Full documentation for the Simple Agent system
+site_author: Bentlybro
+repo_url: https://github.com/reagent-systems/Simple-Agent-Core
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Usage Guide: usage.md
+  - Configuration: configuration.md
+  - Core Modules:
+      - Overview: core/index.md
+      - Agent: core/agent.md
+      - Execution: core/execution.md
+      - Conversation: core/conversation.md
+      - Metacognition: core/metacognition.md
+      - Utils: core/utils.md
+  - Commands System: commands.md
+  - Security Model: security.md
+  - Development & Contributing: development.md
+  - API Reference: api_reference.md
+  - Changelog: changelog.md
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
+  - footnotes
+  - tables
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed
+  - pymdownx.emoji 
