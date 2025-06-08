@@ -85,10 +85,13 @@ class ToolManager:
         sys.path.insert(0, self.temp_dir)
         
     def _discover_local_tools(self):
-        """Discover all available tools from the local commands directory."""
-        base_dir = pathlib.Path(__file__).parent.parent / 'commands'
+        base_dir = pathlib.Path.cwd() / 'commands'
         if not base_dir.exists():
             return
+        # Ensure the parent of 'commands' is in sys.path
+        project_root = str(base_dir.parent.resolve())
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
         for category_dir in base_dir.iterdir():
             if not category_dir.is_dir() or category_dir.name.startswith('__'):
                 continue
