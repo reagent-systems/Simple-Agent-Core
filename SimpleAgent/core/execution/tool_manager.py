@@ -24,9 +24,10 @@ from typing import Dict, Any, Callable, List, Optional, Tuple
 from dataclasses import dataclass, field
 import ast
 import re
+import pathlib
 
 # Import GitHub token from config
-from core.config import GITHUB_TOKEN
+from core.utils.config import GITHUB_TOKEN
 
 # Global registries
 REGISTERED_COMMANDS: Dict[str, Callable] = {}
@@ -72,6 +73,7 @@ class ToolManager:
         """Initialize the tool manager by discovering available tools."""
         self.logger.info("🚀 Initializing Tool Manager...")
         self._create_temp_directory()
+        self._discover_local_tools()
         self._discover_tools()
         self._register_tool_schemas()
         self.logger.info(f"✅ Discovered {len(self.tools)} tools")
@@ -81,6 +83,35 @@ class ToolManager:
         self.temp_dir = tempfile.mkdtemp(prefix="simple_agent_tools_")
         # Add to Python path
         sys.path.insert(0, self.temp_dir)
+        
+    def _discover_local_tools(self):
+        """Discover all available tools from the local commands directory."""
+        base_dir = pathlib.Path(__file__).parent.parent / 'commands'
+        if not base_dir.exists():
+            return
+        for category_dir in base_dir.iterdir():
+            if not category_dir.is_dir() or category_dir.name.startswith('__'):
+                continue
+            for tool_dir in category_dir.iterdir():
+                if not tool_dir.is_dir() or tool_dir.name.startswith('__'):
+                    continue
+                init_file = tool_dir / '__init__.py'
+                if not init_file.exists():
+                    continue
+                module_name = f"commands.{category_dir.name}.{tool_dir.name}"
+                if module_name in sys.modules:
+                    continue
+                try:
+                    importlib.import_module(module_name)
+                    tool = Tool(
+                        name=tool_dir.name,
+                        category=category_dir.name,
+                        github_path=None
+                    )
+                    self.tools[tool_dir.name] = tool
+                    self.logger.debug(f"Discovered local tool: {tool_dir.name} in {category_dir.name}")
+                except Exception as e:
+                    self.logger.error(f"Failed to import local tool {module_name}: {e}")
         
     def _discover_tools(self) -> None:
         """Discover all available tools from GitHub repository."""

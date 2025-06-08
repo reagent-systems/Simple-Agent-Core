@@ -65,17 +65,25 @@ SimpleAgent is organized in a modular structure:
 ```
 SimpleAgent/
 ├── core/                     # Core framework components
-│   ├── agent.py             # Main SimpleAgent class
-│   ├── run_manager.py       # Execution loop management
-│   ├── execution.py         # Command execution and step management
-│   ├── tool_manager.py      # Dynamic tool loading system
-│   ├── conversation.py      # Conversation history management
-│   ├── memory.py            # Persistent memory system
-│   ├── security.py          # Security and path validation
-│   ├── loop_detector.py     # Loop detection and breaking
-│   ├── summarizer.py        # Change summarization
-│   ├── config.py            # Configuration management
-│   └── version.py           # Version and changelog tracking
+│   ├── agent/               # Agent interface and run loop
+│   │   ├── agent.py         # Main SimpleAgent class
+│   │   └── run_manager.py   # Execution loop management
+│   ├── execution/           # Command execution and tool management
+│   │   ├── execution.py     # Command execution and step management
+│   │   ├── tool_manager.py  # Dynamic tool loading system
+│   │   └── summarizer.py    # Change summarization
+│   ├── conversation/        # Conversation and memory management
+│   │   ├── conversation.py  # Conversation history management
+│   │   └── memory.py        # Persistent memory system
+│   ├── metacognition/       # Metacognition, prompts, and loop detection
+│   │   ├── metacognition.py # Internal monologue and reflection
+│   │   ├── loop_detector.py # Loop detection and breaking
+│   │   └── prompts.py       # Centralized prompt templates
+│   ├── utils/               # Utilities and configuration
+│   │   ├── security.py      # Security and path validation
+│   │   ├── config.py        # Configuration management
+│   │   └── version.py       # Version and changelog tracking
+│   └── __init__.py          # Core package exports
 ├── commands/                 # Local command modules (optional)
 │   └── __init__.py          # Command registration system
 ├── output/                   # Generated files and session data

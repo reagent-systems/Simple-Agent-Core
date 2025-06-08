@@ -7,7 +7,7 @@ using a cheaper GPT model.
 
 import os
 from typing import List, Dict, Any
-from core.config import SUMMARIZER_MODEL, create_client
+from core.utils.config import SUMMARIZER_MODEL, create_client
 
 
 class ChangeSummarizer:

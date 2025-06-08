@@ -10,9 +10,9 @@ import time
 import inspect
 from typing import Dict, Any, List, Optional, Tuple, Callable
 
-from core.tool_manager import REGISTERED_COMMANDS, COMMAND_SCHEMAS, load_tool
-from core.security import get_secure_path
-from core.config import OUTPUT_DIR, DEFAULT_MODEL, create_client, API_PROVIDER
+from core.execution.tool_manager import REGISTERED_COMMANDS, COMMAND_SCHEMAS, load_tool
+from core.utils.security import get_secure_path
+from core.utils.config import OUTPUT_DIR, DEFAULT_MODEL, create_client, API_PROVIDER
 
 
 class ExecutionManager:
