@@ -12,6 +12,8 @@ import os
 import time
 import json
 from typing import List, Dict, Any, Optional
+import sentry_sdk
+import uuid
 
 from core.conversation.conversation import ConversationManager
 from core.execution.execution import ExecutionManager
@@ -21,6 +23,7 @@ from core.metacognition.loop_detector import LoopDetector
 from core.metacognition.metacognition import MetaCognition
 from core.metacognition.prompts import prompts
 from core.utils.config import OUTPUT_DIR
+from core.utils import sentry_integration
 
 
 class RunManager:
@@ -139,209 +142,43 @@ class RunManager:
             # Ensure auto_steps_remaining is an integer (0 if auto_continue is None)
             auto_steps_remaining = 0 if auto_continue is None else auto_continue
             
-            while step < max_steps and not self.execution_manager.stop_requested:
-                try:
-                    step += 1
-                    
-                    # Get current date and time for the system message
-                    current_datetime = time.strftime("%Y-%m-%d %H:%M:%S")
-                    current_year = time.strftime("%Y")
-                    
-                    # Determine auto mode guidance
-                    auto_mode_guidance = prompts.get_auto_mode_guidance(auto_steps_remaining)
-                    
-                    # Determine auto status
-                    if auto_steps_remaining == -1:
-                        auto_status = "enabled (infinite)"
-                    elif auto_steps_remaining > 0:
-                        auto_status = f"enabled ({auto_steps_remaining} steps remaining)"
-                    else:
-                        auto_status = "disabled"
-                        
-                    # Create system message using centralized prompts
-                    system_content = prompts.format_main_system_prompt(
-                        primary_objective=task_goal.primary_objective,
-                        success_criteria=', '.join(task_goal.success_criteria),
-                        expected_deliverables=', '.join(task_goal.expected_deliverables),
-                        current_datetime=current_datetime,
-                        current_year=current_year,
-                        auto_mode_guidance=auto_mode_guidance,
-                        current_step=step,
-                        max_steps=max_steps,
-                        auto_status=auto_status
-                    )
-                    
-                    self.conversation_manager.update_system_message(system_content)
-                    
-                    print(f"\n--- Step {step}/{max_steps} ---")
-                    
+            run_id = str(uuid.uuid4())[:8]
+            timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+            extra_data = {
+                "expected_deliverables": task_goal.expected_deliverables,
+                "success_criteria": task_goal.success_criteria,
+                "complexity": task_goal.estimated_complexity,
+                "requires_tools": task_goal.requires_tools,
+            }
+            sentry_integration.log_run_start(
+                user_instruction=user_instruction,
+                output_dir=self.output_dir,
+                max_steps=max_steps,
+                auto_continue=auto_continue,
+                timestamp=timestamp,
+                extra_data=extra_data,
+                run_id=run_id,
+                task_type="ai_news_summary" if "ai news" in user_instruction.lower() else None
+            )
+            
+            with sentry_integration.start_agent_run_transaction():
+                while step < max_steps and not self.execution_manager.stop_requested:
                     try:
-                        # Get the next action from the model
-                        assistant_message = self.execution_manager.get_next_action(
-                            self.conversation_manager.get_history()
-                        )
-                        
-                        if not assistant_message:
-                            print("Error: Failed to get a response from the model.")
-                            break
-                            
-                        # Add the assistant's response to conversation history
-                        content = None
-                        if hasattr(assistant_message, 'content'):
-                            content = assistant_message.content
-                        elif isinstance(assistant_message, dict) and 'content' in assistant_message:
-                            content = assistant_message['content']
-                        if content:
-                            print(f"\n🤖 Assistant: {content}")
-                        
-                        # Create a proper assistant message for the conversation history
-                        message_dict = {"role": "assistant"}
-                        if content:
-                            message_dict["content"] = content
-                        
-                        # Add tool calls if present
-                        has_tool_calls = hasattr(assistant_message, 'tool_calls') and assistant_message.tool_calls
-                        tools_used = []
-                        tool_results = []
-                        
-                        if has_tool_calls:
-                            message_dict["tool_calls"] = [
-                                {
-                                    "id": tool_call.id,
-                                    "type": "function",
-                                    "function": {
-                                        "name": tool_call.function.name,
-                                        "arguments": tool_call.function.arguments
-                                    }
-                                } for tool_call in assistant_message.tool_calls
-                            ]
-                        
-                        # Add the complete assistant message to the conversation
-                        self.conversation_manager.conversation_history.append(message_dict)
-                        
-                        # Reset step changes
-                        step_changes = []
-                        
-                        # Handle any tool calls and collect information for reflection
-                        if has_tool_calls:
-                            for tool_call in assistant_message.tool_calls:
-                                function_name = tool_call.function.name
-                                function_args = json.loads(tool_call.function.arguments)
-                                tools_used.append(function_name)
-                                
-                                # Execute the function
-                                function_response, change = self.execution_manager.execute_function(
-                                    function_name, function_args
-                                )
-                                
-                                tool_results.append(str(function_response))
-                                
-                                # Track changes if any were made
-                                if change:
-                                    changes_made.append(change)
-                                    step_changes.append(change)
-                                
-                                # Add the function call and response to the conversation
-                                self.conversation_manager.add_message(
-                                    "tool", 
-                                    str(function_response), 
-                                    tool_call_id=tool_call.id,
-                                    name=function_name
-                                )
-                        
-                        # **METACOGNITIVE REFLECTION** - Agent reflects on what it just did
-                        if content:
-                            print("\n🧠 Agent reflecting on action...")
-                            reflection = self.metacognition.reflect_on_action(
-                                step, content, tools_used, tool_results
+                        with sentry_integration.start_agent_step_span(step):
+                            step += 1
+                            should_continue = self._run_step(
+                                step, user_instruction, max_steps, auto_steps_remaining, task_goal, changes_made
                             )
-                            
-                            if reflection:
-                                print(f"💭 Outcome: {reflection.outcome_achieved}")
-                                print(f"📈 Progress: {reflection.progress_made}")
-                                print(f"📋 Remaining: {reflection.remaining_work}")
-                                print(f"🎯 Confidence: {reflection.confidence_level:.2f}")
-                        
-                        # **INTELLIGENT STOPPING DECISION** - Agent decides if it should continue
-                        should_continue, reasoning, confidence = self.metacognition.should_task_continue(step, max_steps)
-                        
-                        if not should_continue:
-                            print(f"\n🧠 METACOGNITIVE DECISION: STOP")
-                            print(f"💡 Reasoning: {reasoning}")
-                            print(f"🎯 Confidence: {confidence:.2f}")
-                            print("\n✅ Task completed based on intelligent analysis")
-                            break
-                        else:
-                            print(f"\n🧠 METACOGNITIVE DECISION: CONTINUE")
-                            print(f"💡 Reasoning: {reasoning}")
-                            print(f"🎯 Confidence: {confidence:.2f}")
-                        
-                        # Check for old-style loops only if metacognition suggests continuing
-                        if content:
-                            self.loop_detector.add_response(content, step, has_tool_calls)
-                            loop_info = self.loop_detector.detect_loop(step)
-                            
-                            if loop_info and loop_info['loop_severity'] == 'high':
-                                print(f"\n🔄 HIGH-SEVERITY LOOP DETECTED: {loop_info['type']}")
-                                print(f"   Repeated {loop_info['count']} times across steps: {loop_info['steps_involved']}")
-                                
-                                # Ask metacognition to reconsider in light of the loop
-                                print("🧠 Metacognitive system reconsidering due to loop detection...")
-                                should_continue, reasoning, confidence = self.metacognition.should_task_continue(step, max_steps)
-                                
-                                if not should_continue:
-                                    print(f"🛑 Metacognitive decision: STOP due to loop + task analysis")
-                                    print(f"💡 Reasoning: {reasoning}")
-                                    break
-                                else:
-                                    # Generate loop-breaking message using centralized prompts
-                                    loop_breaking_message = prompts.format_loop_breaking_message(
-                                        loop_type=loop_info['type'],
-                                        severity=loop_info['loop_severity'], 
-                                        count=loop_info['count'],
-                                        steps=loop_info['steps_involved'],
-                                        original_instruction=user_instruction,
-                                        had_recent_actions=loop_info.get('recent_actions', False)
-                                    )
-                                    print(f"\n⚡ Injecting loop-breaking guidance...")
-                                    self.conversation_manager.add_message("user", loop_breaking_message)
-                                    continue
-                        
-                        # Generate a summary of changes for this step if any were made
-                        if step_changes:
-                            step_summary = self.summarizer.summarize_changes(step_changes, is_step_summary=True)
-                            if step_summary:
-                                print(f"\n{step_summary}")
-                        
-                        # Handle continuation logic (now simplified since metacognition handles stopping)
-                        if step < max_steps and not self.execution_manager.stop_requested:
-                            # Only show overall progress if there are changes and it's different from step summary
-                            if changes_made:
-                                overall_summary = self.summarizer.summarize_changes(changes_made)
-                                if overall_summary and (not step_changes or overall_summary != step_summary):
-                                    print(f"\n{overall_summary}")
-                            
-                            # Handle auto-continue
+                            if not should_continue:
+                                break
                             if auto_steps_remaining == -1 or auto_steps_remaining > 0:
-                                if auto_steps_remaining > 0:  # Only decrement if it's a positive number
+                                if auto_steps_remaining > 0:
                                     auto_steps_remaining -= 1
                                     
                                 # Check if a stop was requested
                                 if self.execution_manager.stop_requested:
                                     print("\n🛑 Stop requested. Halting auto-continue execution.")
                                     break
-                                    
-                                # Check if the model is using outdated date references
-                                if content and any(outdated_year in content.lower() for outdated_year in ["2020", "2021", "2022", "2023", "2024"]):
-                                    # Check if it's not referring to historical context
-                                    if any(current_indicator in content.lower() for current_indicator in ["current", "now", "today", "present", "currently"]):
-                                        date_correction = prompts.DATE_CORRECTION.format(
-                                            current_datetime=current_datetime,
-                                            current_year=current_year
-                                        )
-                                        print(f"\n📅 Auto-mode: Correcting outdated date reference")
-                                        self.conversation_manager.add_message("user", date_correction)
-                                
                                 print("\n🔄 Auto-continuing...")
                                 continue
                             
@@ -361,17 +198,10 @@ class RunManager:
                                 # Add the custom message to the conversation
                                 print(f"\n🧑 User: {user_input}")
                                 self.conversation_manager.add_message("user", user_input)
-                        else:
-                            break
-                    
                     except Exception as e:
+                        sentry_integration.capture_exception(e)
                         print(f"Error in step execution: {str(e)}")
                         break
-                
-                except KeyboardInterrupt:
-                    print("\n🛑 KeyboardInterrupt received. Stopping the agent...")
-                    self.execution_manager.stop_requested = True
-                    print("\n✅ Agent execution interrupted by user")
             
             # Generate a final summary of all changes
             if changes_made:
@@ -390,7 +220,7 @@ class RunManager:
                 print(f"\n📊 Final Task Analysis:")
                 print(f"   🎯 Goal: {progress_summary['goal']}")
                 print(f"   📋 Steps Completed: {progress_summary['steps_completed']}")
-                print(f"   🎯 Average Confidence: {progress_summary['average_confidence']:.2f}")
+                print(f"    Average Confidence: {progress_summary['average_confidence']:.2f}")
                 print(f"   ⏱️ Time Elapsed: {progress_summary['time_elapsed']:.1f} seconds")
             
             # Save the memory
@@ -398,9 +228,169 @@ class RunManager:
             self.memory_manager.save_memory()
             
             print("\n🏁 SimpleAgent execution completed")
-            
+            sentry_integration.capture_message("Agent run completed")
+        except Exception as e:
+            sentry_integration.capture_exception(e)
+            raise
         finally:
             # Always restore the original working directory
             if os.getcwd() != original_cwd:
                 os.chdir(original_cwd)
+
+    def _run_step(self, step, user_instruction, max_steps, auto_steps_remaining, task_goal, changes_made):
+        current_datetime = time.strftime("%Y-%m-%d %H:%M:%S")
+        current_year = time.strftime("%Y")
+        auto_mode_guidance = prompts.get_auto_mode_guidance(auto_steps_remaining)
+        if auto_steps_remaining == -1:
+            auto_status = "enabled (infinite)"
+        elif auto_steps_remaining > 0:
+            auto_status = f"enabled ({auto_steps_remaining} steps remaining)"
+        else:
+            auto_status = "disabled"
+        system_content = prompts.format_main_system_prompt(
+            primary_objective=task_goal.primary_objective,
+            success_criteria=', '.join(task_goal.success_criteria),
+            expected_deliverables=', '.join(task_goal.expected_deliverables),
+            current_datetime=current_datetime,
+            current_year=current_year,
+            auto_mode_guidance=auto_mode_guidance,
+            current_step=step,
+            max_steps=max_steps,
+            auto_status=auto_status
+        )
+        self.conversation_manager.update_system_message(system_content)
+        print(f"\n--- Step {step}/{max_steps} ---")
+        assistant_message = self.execution_manager.get_next_action(
+            self.conversation_manager.get_history()
+        )
+        if not assistant_message:
+            print("Error: Failed to get a response from the model.")
+            return False
+        content = None
+        if hasattr(assistant_message, 'content'):
+            content = assistant_message.content
+        elif isinstance(assistant_message, dict) and 'content' in assistant_message:
+            content = assistant_message['content']
+        if content:
+            print(f"\n🤖 Assistant: {content}")
+        message_dict = {"role": "assistant"}
+        if content:
+            message_dict["content"] = content
+        has_tool_calls = hasattr(assistant_message, 'tool_calls') and assistant_message.tool_calls
+        tools_used = []
+        tool_results = []
+        if has_tool_calls:
+            message_dict["tool_calls"] = [
+                {
+                    "id": tool_call.id,
+                    "type": "function",
+                    "function": {
+                        "name": tool_call.function.name,
+                        "arguments": tool_call.function.arguments
+                    }
+                } for tool_call in assistant_message.tool_calls
+            ]
+        self.conversation_manager.conversation_history.append(message_dict)
+        step_changes = []
+        if has_tool_calls:
+            for tool_call in assistant_message.tool_calls:
+                change, function_name = self._execute_tool_call(tool_call, tools_used, step_changes, changes_made)
+        if content:
+            print("\n🧠 Agent reflecting on action...")
+            reflection = self.metacognition.reflect_on_action(
+                step, content, tools_used, tool_results
+            )
+            if reflection:
+                print(f"💭 Outcome: {reflection.outcome_achieved}")
+                print(f"📈 Progress: {reflection.progress_made}")
+                print(f"📋 Remaining: {reflection.remaining_work}")
+                print(f"🎯 Confidence: {reflection.confidence_level:.2f}")
+        should_continue, reasoning, confidence = self.metacognition.should_task_continue(step, max_steps)
+        sentry_integration.log_breadcrumb(
+            message=f"Metacognitive decision: {'CONTINUE' if should_continue else 'STOP'}",
+            category="agent.decision",
+            level="info",
+            data={"reasoning": reasoning, "confidence": confidence}
+        )
+        if not should_continue:
+            print(f"\n🧠 METACOGNITIVE DECISION: STOP")
+            print(f"💡 Reasoning: {reasoning}")
+            print(f"🎯 Confidence: {confidence:.2f}")
+            print("\n✅ Task completed based on intelligent analysis")
+            return False
+        else:
+            print(f"\n🧠 METACOGNITIVE DECISION: CONTINUE")
+            print(f"💡 Reasoning: {reasoning}")
+            print(f"🎯 Confidence: {confidence:.2f}")
+        if content:
+            self.loop_detector.add_response(content, step, has_tool_calls)
+            loop_info = self.loop_detector.detect_loop(step)
+            if loop_info and loop_info['loop_severity'] == 'high':
+                print(f"\n🔄 HIGH-SEVERITY LOOP DETECTED: {loop_info['type']}")
+                print(f"   Repeated {loop_info['count']} times across steps: {loop_info['steps_involved']}")
+                print("🧠 Metacognitive system reconsidering due to loop detection...")
+                should_continue, reasoning, confidence = self.metacognition.should_task_continue(step, max_steps)
+                if not should_continue:
+                    print(f"🛑 Metacognitive decision: STOP due to loop + task analysis")
+                    print(f"💡 Reasoning: {reasoning}")
+                    return False
+                else:
+                    loop_breaking_message = prompts.format_loop_breaking_message(
+                        loop_type=loop_info['type'],
+                        severity=loop_info['loop_severity'], 
+                        count=loop_info['count'],
+                        steps=loop_info['steps_involved'],
+                        original_instruction=user_instruction,
+                        had_recent_actions=loop_info.get('recent_actions', False)
+                    )
+                    print(f"\n⚡ Injecting loop-breaking guidance...")
+                    self.conversation_manager.add_message("user", loop_breaking_message)
+                    return True
+        if step_changes:
+            step_summary = self.summarizer.summarize_changes(step_changes, is_step_summary=True)
+            if step_summary:
+                print(f"\n{step_summary}")
+        if changes_made:
+            overall_summary = self.summarizer.summarize_changes(changes_made)
+            if overall_summary:
+                print(f"\n{overall_summary}")
+        return True
+
+    def _execute_tool_call(self, tool_call, tools_used, step_changes, changes_made):
+        function_name = tool_call.function.name
+        function_args = json.loads(tool_call.function.arguments)
+        with sentry_integration.start_tool_call_span(function_name):
+            sentry_integration.log_breadcrumb(
+                message=f"Executing tool: {function_name}",
+                category="tool.execution",
+                level="info",
+                data={"function_name": function_name, "args": function_args}
+            )
+            function_response, change = self.execution_manager.execute_function(
+                function_name, function_args
+            )
+            sentry_integration.log_breadcrumb(
+                message=f"Tool executed successfully: {function_name}",
+                category="tool.execution",
+                level="info",
+                data={"function_name": function_name, "result": function_response}
+            )
+            if function_name == "write_file" and "file_path" in function_args:
+                sentry_integration.log_breadcrumb(
+                    message=f"File written: {function_args['file_path']}",
+                    category="file.operation",
+                    level="info",
+                    data={"file_path": function_args['file_path'], "content_length": len(function_args.get('content', ''))}
+                )
+        tools_used.append(function_name)
+        if change:
+            changes_made.append(change)
+            step_changes.append(change)
+        self.conversation_manager.add_message(
+            "tool", 
+            str(function_response), 
+            tool_call_id=tool_call.id,
+            name=function_name
+        )
+        return change, function_name
 

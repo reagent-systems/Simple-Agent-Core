@@ -13,6 +13,7 @@ import argparse
 import logging
 import uuid
 from typing import List, Dict, Any, Optional, Callable
+from core.utils.sentry_integration import init_sentry
 
 # Set up basic logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -55,6 +56,7 @@ else:
     logging.error(f"Error: Unknown API_PROVIDER '{API_PROVIDER}'. Supported providers: 'openai', 'lmstudio', 'gemini'")
     sys.exit(1)
 
+init_sentry()
 
 def main():
     # Set up argument parser

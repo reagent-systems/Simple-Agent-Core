@@ -10,3 +10,4 @@ discord.py
 pyautogui
 google-genai
 mkdocs-material
+sentry-sdk
