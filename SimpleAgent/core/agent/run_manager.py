@@ -38,9 +38,9 @@ class RunManager:
             output_dir: The output directory for file operations
         """
         self.output_dir = output_dir
-        self.conversation_manager = ConversationManager()
-        self.execution_manager = ExecutionManager(model=model, output_dir=output_dir)
         self.memory_manager = MemoryManager()
+        self.conversation_manager = ConversationManager(memory_manager=self.memory_manager)
+        self.execution_manager = ExecutionManager(model=model, output_dir=output_dir)
         self.summarizer = ChangeSummarizer()
         self.loop_detector = LoopDetector(window_size=5, similarity_threshold=0.7)
         
@@ -73,6 +73,9 @@ class RunManager:
         print(f"🛠️ Requires Tools: {task_goal.requires_tools}")
         if task_goal.expected_deliverables:
             print(f"📦 Expected Deliverables: {', '.join(task_goal.expected_deliverables)}")
+            
+        # Set task objective for context compression
+        self.conversation_manager.set_task_objective(task_goal.primary_objective)
         
         # Get current date and time information for the system message
         current_datetime = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -172,6 +175,10 @@ class RunManager:
                     )
                     
                     self.conversation_manager.update_system_message(system_content)
+                    
+                    # Check if context compression is needed before processing
+                    if self.conversation_manager.compress_if_needed():
+                        print("🔄 Context compressed - continuing with optimized history")
                     
                     print(f"\n--- Step {step}/{max_steps} ---")
                     
@@ -372,6 +379,14 @@ class RunManager:
                     print("\n🛑 KeyboardInterrupt received. Stopping the agent...")
                     self.execution_manager.stop_requested = True
                     print("\n✅ Agent execution interrupted by user")
+            
+            # Show context compression statistics if any compression occurred
+            compression_stats = self.conversation_manager.get_compression_stats()
+            if compression_stats["total_compressions"] > 0:
+                print(f"\n🗜️ Context Compression Statistics:")
+                print(f"   📊 Total compressions: {compression_stats['total_compressions']}")
+                print(f"   💾 Total tokens saved: {compression_stats['total_tokens_saved']}")
+                print(f"   ⚡ Enabled long-running task capability")
             
             # Generate a final summary of all changes
             if changes_made:

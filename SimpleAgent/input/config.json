@@ -1,0 +1,30 @@
+{
+  "project": {
+    "name": "SimpleAgent Input System",
+    "version": "1.0.0",
+    "description": "A secure input file system for AI agents"
+  },
+  "features": [
+    "Secure file access",
+    "Multiple file format support",
+    "Size and extension validation",
+    "Read-only access",
+    "Search functionality"
+  ],
+  "supported_formats": {
+    "text": [".txt", ".md"],
+    "data": [".json", ".csv", ".yaml", ".yml"],
+    "code": [".py", ".js", ".html", ".css", ".xml"]
+  },
+  "security": {
+    "max_file_size": "10MB",
+    "directory_restriction": true,
+    "path_traversal_protection": true
+  },
+  "usage_examples": [
+    "access_input_file('sample.txt', 'read')",
+    "access_input_file('config.json', 'json')",
+    "access_input_file('data.csv', 'csv')",
+    "access_input_file('', 'list')"
+  ]
+}

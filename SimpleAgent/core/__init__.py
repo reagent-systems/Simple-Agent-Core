@@ -11,6 +11,7 @@ from core.execution.execution import ExecutionManager
 from core.conversation.memory import MemoryManager
 from core.agent.run_manager import RunManager
 from core.utils.security import get_secure_path
+from core.utils.input_manager import InputManager
 
 __all__ = [
     "SimpleAgent", 
@@ -19,5 +20,6 @@ __all__ = [
     "ExecutionManager",
     "MemoryManager",
     "RunManager",
-    "get_secure_path"
-] 
+    "get_secure_path",
+    "InputManager"
+]
