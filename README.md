@@ -370,3 +370,136 @@ This project is open source. Please check the repository for license details.
 ---
 
 🚀 **SimpleAgent** - Because intelligence shouldn't require complexity!
+
+
+
+```mermaid
+flowchart TD
+    %% CLI Layer
+    subgraph "CLI Layer"
+        direction TB
+        CLI["SimpleAgent.py"]:::cli
+        Env[".env Example"]:::util
+    end
+
+    %% Core Engine Layer
+    subgraph "Core Engine" 
+        direction TB
+        subgraph "Agent Core"
+            direction TB
+            Agent["Agent Class"]:::core
+            RunMgr["RunManager"]:::core
+        end
+        subgraph "Execution Layer"
+            direction TB
+            ExecMgr["ExecutionManager"]:::core
+            ToolMgr["ToolManager"]:::core
+            Summarizer["Summarizer"]:::core
+        end
+        subgraph "Conversation & Memory"
+            direction TB
+            ConvMgr["Conversation Manager"]:::core
+            Memory["Memory Module"]:::core
+        end
+        subgraph "Metacognition"
+            direction TB
+            LoopDet["LoopDetector"]:::core
+            MetaLogic["Metacognition Logic"]:::core
+            Prompts["Prompts Library"]:::core
+        end
+        subgraph "Utilities"
+            direction TB
+            Security["Security Utilities"]:::security
+            Config["Config Manager"]:::util
+            Version["Version Tracker"]:::util
+        end
+    end
+
+    %% Plugin Sources
+    subgraph "Plugin Sources"
+        direction TB
+        LocalCmds["Local commands/"]:::plugin
+        RemoteRepo["Remote Tool Repo"]:::plugin
+    end
+
+    %% External Services
+    subgraph "External AI Providers"
+        direction TB
+        OpenAI["OpenAI API"]:::external
+        LMStudio["LM-Studio Endpoint"]:::external
+        Gemini["Google Gemini API"]:::external
+    end
+
+    %% Workspace
+    subgraph "Sandbox Workspace"
+        direction TB
+        Workspace["output/v.../"]:::security
+    end
+
+    %% Testing & CI
+    subgraph "Testing & CI"
+        direction TB
+        Tests["test_simple_agent.py"]:::util
+        CI["GitHub Actions (ci.yml)"]:::util
+    end
+
+    %% Connections
+    CLI-->|load .env config|Config
+    Config-->|.env data|Agent
+    CLI-->|instantiate Agent|Agent
+    Agent-->|start loop|RunMgr
+    RunMgr-->|execute step|ExecMgr
+    ExecMgr-->|load tool|ToolMgr
+    ToolMgr-->|local override|LocalCmds
+    ToolMgr-->|fallback load|RemoteRepo
+    ExecMgr-->|send prompt|OpenAI
+    ExecMgr-->|send prompt|LMStudio
+    ExecMgr-->|send prompt|Gemini
+    OpenAI-->|response|ExecMgr
+    LMStudio-->|response|ExecMgr
+    Gemini-->|response|ExecMgr
+    ExecMgr-->|apply tool logic|Workspace
+    ExecMgr-->|record diffs|Summarizer
+    Summarizer-->|condensed changes|Agent
+    ExecMgr-->|append message|ConvMgr
+    ConvMgr<-->|persist facts|Memory
+    LoopDet-->|inspect history|ConvMgr
+    LoopDet-->|break loops|RunMgr
+    MetaLogic-->|provide logic|RunMgr
+    Prompts-->|prompt templates|ExecMgr
+    Workspace-->|validate path|Security
+    Security-->|enforce sandbox|Workspace
+    Agent-->|terminate|Security
+
+    Tests-->|validates|Agent
+    CI-->|runs tests|Tests
+
+    %% Click Events
+    click CLI "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/SimpleAgent.py"
+    click Agent "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/agent/agent.py"
+    click RunMgr "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/agent/run_manager.py"
+    click ExecMgr "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/execution/execution.py"
+    click ToolMgr "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/execution/tool_manager.py"
+    click Summarizer "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/execution/summarizer.py"
+    click ConvMgr "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/conversation/conversation.py"
+    click Memory "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/conversation/memory.py"
+    click LoopDet "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/metacognition/loop_detector.py"
+    click MetaLogic "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/metacognition/metacognition.py"
+    click Prompts "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/metacognition/prompts.py"
+    click Security "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/utils/security.py"
+    click Config "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/utils/config.py"
+    click Version "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/core/utils/version.py"
+    click Env "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/.env.example"
+    click LocalCmds "https://github.com/reagent-systems/simple-agent-core/tree/main/SimpleAgent/commands/"
+    click Tests "https://github.com/reagent-systems/simple-agent-core/blob/main/SimpleAgent/test_simple_agent.py"
+    click CI "https://github.com/reagent-systems/simple-agent-core/blob/main/.github/workflows/ci.yml"
+
+    %% Styles
+    classDef core fill:#D6EAF8,stroke:#21618C,stroke-width:1px,color:#000
+    classDef plugin fill:#D5F5E3,stroke:#1D8348,stroke-width:1px,color:#000
+    classDef external fill:#FAD7A0,stroke:#B9770E,stroke-width:1px,color:#000
+    classDef security fill:#F5B7B1,stroke:#922B21,stroke-width:1px,color:#000
+    classDef util fill:#D7BDE2,stroke:#7D3C98,stroke-width:1px,color:#000
+    classDef cli fill:#ABEBC6,stroke:#117A65,stroke-width:1px,color:#000
+
+```
