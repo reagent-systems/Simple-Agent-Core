@@ -38,6 +38,26 @@ OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
+# Input directory - All input files should be placed here for agent access
+# Can be customized through environment variable
+# Use absolute path to ensure it works regardless of current working directory
+_input_dir_relative = os.getenv("INPUT_DIR", "input")
+if os.path.isabs(_input_dir_relative):
+    INPUT_DIR = _input_dir_relative
+else:
+    # Get the directory where this config file is located (core/)
+    _config_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up one level to get to the SimpleAgent root directory
+    _project_root = os.path.dirname(_config_dir)
+    INPUT_DIR = os.path.join(_project_root, _input_dir_relative)
+
+if not os.path.exists(INPUT_DIR):
+    os.makedirs(INPUT_DIR)
+
+# Input file settings
+MAX_INPUT_FILE_SIZE = int(os.getenv("MAX_INPUT_FILE_SIZE", str(10 * 1024 * 1024)))  # 10MB default
+ALLOWED_INPUT_EXTENSIONS = os.getenv("ALLOWED_INPUT_EXTENSIONS", ".txt,.json,.csv,.md,.py,.js,.html,.css,.xml,.yaml,.yml").split(",")
+
 # Memory settings
 MEMORY_FILE = os.path.join(OUTPUT_DIR, os.getenv("MEMORY_FILE", "memory.json"))
 
@@ -71,4 +91,4 @@ def create_client():
         if not OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY must be set when using OpenAI provider")
         from openai import OpenAI
-        return OpenAI(api_key=OPENAI_API_KEY) 
+        return OpenAI(api_key=OPENAI_API_KEY)

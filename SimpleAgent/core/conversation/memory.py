@@ -42,9 +42,9 @@ class MemoryManager:
                 return memory
             except (json.JSONDecodeError, IOError) as e:
                 print(f"Error loading memory from {self.memory_file}: {e}")
-                return {"conversations": [], "files_created": [], "files_modified": []}
+                return {"conversations": [], "files_created": [], "files_modified": [], "context_compressions": []}
         else:
-            return {"conversations": [], "files_created": [], "files_modified": []}
+            return {"conversations": [], "files_created": [], "files_modified": [], "context_compressions": []}
             
     def save_memory(self) -> None:
         """Save the agent's memory to the memory file."""
@@ -87,6 +87,17 @@ class MemoryManager:
         if file_path not in self.memory["files_modified"]:
             self.memory["files_modified"].append(file_path)
             
+    def add_context_compression(self, compression_event: Dict[str, Any]) -> None:
+        """
+        Add a context compression event to the memory.
+        
+        Args:
+            compression_event: The compression event data
+        """
+        if "context_compressions" not in self.memory:
+            self.memory["context_compressions"] = []
+        self.memory["context_compressions"].append(compression_event)
+
     def get_memory(self) -> Dict[str, Any]:
         """
         Get the current memory.

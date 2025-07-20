@@ -20,6 +20,7 @@ from core.conversation.memory import MemoryManager
 from core.agent.run_manager import RunManager
 from core.utils.security import get_secure_path
 from core.utils.config import DEFAULT_MODEL, OUTPUT_DIR
+from core.utils.input_manager import InputManager
 
 
 class SimpleAgent:
@@ -46,6 +47,9 @@ class SimpleAgent:
         self.conversation_manager = self.run_manager.conversation_manager
         self.execution_manager = self.run_manager.execution_manager
         self.memory_manager = self.run_manager.memory_manager
+        
+        # Initialize input manager for accessing input files
+        self.input_manager = InputManager()
         
         # Initialize memory
         self.memory = self.memory_manager.get_memory()
@@ -134,4 +138,58 @@ class SimpleAgent:
         Returns:
             Modified file path within output directory
         """
-        return get_secure_path(file_path, self.output_dir) 
+        return get_secure_path(file_path, self.output_dir)
+    
+    def list_input_files(self) -> List[str]:
+        """
+        List all available input files.
+        
+        Returns:
+            List of input file names
+        """
+        files = self.input_manager.list_input_files()
+        return [f.name for f in files]
+    
+    def read_input_file(self, filename: str) -> str:
+        """
+        Read the contents of an input file.
+        
+        Args:
+            filename: Name of the file to read
+            
+        Returns:
+            File contents as string
+        """
+        return self.input_manager.read_input_file(filename)
+    
+    def get_input_file_info(self, filename: str) -> Dict[str, Any]:
+        """
+        Get information about an input file.
+        
+        Args:
+            filename: Name of the file
+            
+        Returns:
+            Dictionary with file information
+        """
+        file_info = self.input_manager.get_input_file_info(filename)
+        return {
+            'name': file_info.name,
+            'size': file_info.size,
+            'extension': file_info.extension,
+            'mime_type': file_info.mime_type,
+            'modified_time': file_info.modified_time.isoformat(),
+            'is_text': file_info.is_text
+        }
+    
+    def input_file_exists(self, filename: str) -> bool:
+        """
+        Check if an input file exists.
+        
+        Args:
+            filename: Name of the file to check
+            
+        Returns:
+            True if file exists and is accessible, False otherwise
+        """
+        return self.input_manager.file_exists(filename)
